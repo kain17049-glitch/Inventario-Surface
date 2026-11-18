@@ -5,8 +5,8 @@
  * en segundo plano. Sin señal, espera y se sube solo cuando vuelve.
  */
 const API_URL = 'https:' + String.fromCharCode(47, 47) + 'script.google.com/macros/s/AKfycbyXNamoz37LfEsn67XloeSKID490RBDJtJO9ZrYTswXYtp4bqABtJDuyFGOwMFijaoVLA/exec';
-const APP_VER = '2.4.2';
-const OFF = { en: true, snap: null, ST: {}, TOT: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
+const APP_VER = '2.4.3';
+const OFF = { en: true, snap: null, ST: {}, TOT: {}, FOTOS: {}, FT: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
 const LECTURAS = ['historial', 'porEstado', 'stockBajo', 'pendientes', 'listaProyectos', 'resumenProyecto', 'kardex',
                   'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea'];
 
@@ -134,7 +134,7 @@ function buscarOffline(codigo){
   const cons = movs.filter(m => m.t === 'SALIDA' && m.e === 'OK' && m.ms >= desde).reduce((s, m) => s + m.q, 0)
     + OFF.cola.filter(o => o.est !== 'error' && o.c === p.c && o.m.tipo === 'SALIDA').reduce((s, o) => s + o.q, 0);
   const total = r3(tot.DISPONIBLE + tot.REVISION + tot.VENTA);
-  const cola = OFF.cola.filter(o => o.c === p.c && o.k !== 'CREAR').slice().reverse().map(movDeCola);
+  const cola = OFF.cola.filter(o => o.c === p.c && !o.k).slice().reverse().map(movDeCola);
   return {tipo: 'producto', producto: p, stock: stock, tot: tot, total: total, enUso: enUso, pendientes: pend,
           consumoMes: r3(cons / 3), valor: Math.round(total * (p.cp || 0) * 100) / 100,
           bajo: p.min > 0 && tot.DISPONIBLE < p.min,
@@ -234,6 +234,7 @@ function cambiarCodigo(tmp, real){
     if (o.m && o.m.codigo === tmp) o.m.codigo = real;
     (o.efs || []).forEach(e => { if (e[0] === tmp) e[0] = real; });
   });
+  if (OFF.FOTOS[tmp]){ OFF.FOTOS[real] = OFF.FOTOS[tmp]; delete OFF.FOTOS[tmp]; idbPut(real, OFF.FOTOS[real]); idbDel(tmp); }
   if (S.prod && S.prod.c === tmp){ S.prod = Object.assign({}, S.prod, {c: real, tmp: false}); const c = document.getElementById('codigo'); if (c && c.value === tmp) c.value = real; }
   toast('☁️ Producto nuevo subido: ' + esc(tmp) + ' → <b>' + esc(real) + '</b>');
 }
@@ -248,7 +249,8 @@ async function sincronizarCola(manual){
   try {
     const lote = pend.slice(0, 15);
     const r = await remoto('sincronizar', [S.u, S.pin, lote.map(o => o.k === 'CREAR' ? {opid: o.opid, ms: o.ms, k: 'CREAR', d: o.d, tmp: o.c}
-                                                                       : {opid: o.opid, ms: o.ms, m: o.m}), dispositivo()], 180000);
+                                                       : o.k === 'FOTO' ? {opid: o.opid, ms: o.ms, k: 'FOTO', c: o.c, data: o.data}
+                                                       : {opid: o.opid, ms: o.ms, m: o.m}), dispositivo()], 180000);
     const porId = {}; r.res.forEach(x => porId[x.opid] = x);
     r.res.forEach(x => { if (x.ok && x.tmp && x.cod) cambiarCodigo(x.tmp, x.cod); });
     let err = 0, ok = 0;
@@ -257,6 +259,7 @@ async function sincronizarCola(manual){
       if (x.ok){ ok++; return false; }
       o.est = 'error'; o.error = x.error; err++; return true;
     });
+    lote.forEach(o => { if (o.k === 'FOTO' && porId[o.opid] && porId[o.opid].ok && r.snap.fotos && r.snap.fotos[o.c]) { OFF.FT[o.c] = r.snap.fotos[o.c]; lsSet('fotoT', OFF.FT); } });
     guardarCola(); guardarSnap(r.snap); recalcLocal(); aplicarSnap(r.snap);
     if (err) toast(`⚠️ ${err} movimiento(s) no se pudieron guardar. Toca <b>⚠️</b> arriba para revisarlos.`, true);
     else if (manual) toast(`☁️ ${ok} movimiento(s) subidos a la hoja.`);
@@ -286,6 +289,7 @@ function aplicarSnap(sn){
   S.areas = sn.areas; S.unidades = sn.unidades; S.cfg = sn.cfg;
   indexar();
   try { pintarProyectosSelect(); } catch(e){}
+  bajarFotos(sn);
   if (S.prod){ const np = S.productos.find(p => p.c === S.prod.c); if (np) S.prod = np; }
 }
 
@@ -344,6 +348,7 @@ async function offEntrar(u, pin){
     const sn = await remoto('snapshot', [u, pin]);
     lsSet('h_' + sn.usuario.toUpperCase(), await hashPin(sn.usuario, pin));
     guardarSnap(sn); OFF.cola = lsGet('cola') || []; recalcLocal();
+    setTimeout(() => bajarFotos(sn), 1500);
     return sn;
   } catch(e){
     if (!e.red) throw e;
@@ -379,9 +384,9 @@ function pintarPanelSync(){
   $('syEstado').innerHTML = `${est}<br><small>Datos del ${esc((OFF.snap && OFF.snap.ts) || '—')}${OFF.tSnap ? ' (' + hace(OFF.tSnap) + ')' : ''} · app ${APP_VER} · <a href="#" onclick="actualizarApp();return false" style="color:#cfc6ff">buscar actualización</a></small>` +
     (otros ? `<div class="aviso">Hay ${otros} movimiento(s) de otro usuario en este celular. Se subirán cuando esa persona entre.</div>` : '');
   $('syLista').innerHTML = mias.length ? mias.slice().reverse().map(o => {
-    const T = o.k === 'CREAR' ? {t: 'Producto nuevo'} : (TIPOS[o.m.tipo] || {t: o.m.tipo});
+    const T = o.k === 'CREAR' ? {t: 'Producto nuevo'} : o.k === 'FOTO' ? {t: '📷 Foto'} : (TIPOS[o.m.tipo] || {t: o.m.tipo});
     return `<div class="item"><div class="top"><span><span class="badge ${o.m.tipo}">${esc(T.t)}</span> ${o.est === 'error' ? '<span class="badge SALIDA">Error</span>' : '<span class="badge">Por subir</span>'}</span><span>${esc(fechaCorta(new Date(o.ms)))}</span></div>
-      <div>${o.k === 'CREAR' ? `<b class="tmpCod">${esc(o.c)}</b> · ${esc(o.p.d)}` : `<b>${fmtN(o.q)} ${esc(o.un)}</b> · ${esc(o.d)}`}</div><div class="meta">${esc(o.m.ubicacion)}${o.m.destino ? ' → ' + esc(o.m.destino) : ''}</div>
+      <div>${o.k === 'FOTO' ? `${esc(o.c)} · ${esc((prodLocal(o.c) || {}).d || '')}` : o.k === 'CREAR' ? `<b class="tmpCod">${esc(o.c)}</b> · ${esc(o.p.d)}` : `<b>${fmtN(o.q)} ${esc(o.un)}</b> · ${esc(o.d)}`}</div><div class="meta">${esc(o.m.ubicacion)}${o.m.destino ? ' → ' + esc(o.m.destino) : ''}</div>
       ${o.est === 'error' ? `<div class="aviso error">${esc(o.error)}</div><div class="fila" style="margin-top:8px"><button class="btn sm" onclick="reintentarOp('${o.opid}')">Reintentar</button> <button class="btn sm peligro" onclick="descartarOp('${o.opid}')">Descartar</button></div>` : ''}</div>`;
   }).join('') : '<div class="ayuda">✓ No hay nada pendiente: todo está en la hoja.</div>';
 }
@@ -393,6 +398,7 @@ function descartarOp(id){
 
 /* ---------- Arranque de la capa ---------- */
 function iniciarCapaOffline(){
+  OFF.FT = lsGet('fotoT') || {}; cargarFotosLocal();
   OFF.snap = lsGet('snap'); OFF.tSnap = lsGet('tSnap') || 0; OFF.cola = lsGet('cola') || [];
   OFF.en = navigator.onLine !== false;
   window.addEventListener('online', () => { OFF.en = true; pintarChipSync(); programarSync(500); });
@@ -426,4 +432,108 @@ async function actualizarApp(){
 function tickSync(){
   if (OFF.cola.some(o => o.est === 'pendiente' && o.u === S.u)) sincronizarCola(false);
   else if (Date.now() - OFF.tSnap > 3 * 60000) refrescarSnap(false);
+}
+
+/* ================= Fotos de referencia (v2.4.3) =================
+ * Una foto pequeña por producto. Se guarda en el celular (IndexedDB) para verla sin señal
+ * y se sube a la hoja FOTOS. Sin señal queda en la cola como cualquier movimiento. */
+let _db = null;
+function idb(){
+  if (_db) return _db;
+  _db = new Promise((ok, mal) => {
+    try {
+      const r = indexedDB.open('inv3_fotos', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('f');
+      r.onsuccess = () => ok(r.result); r.onerror = () => mal(r.error);
+    } catch(e){ mal(e); }
+  });
+  return _db;
+}
+async function idbPut(k, v){ try { const d = await idb(); d.transaction('f', 'readwrite').objectStore('f').put(v, k); } catch(e){} }
+async function idbDel(k){ try { const d = await idb(); d.transaction('f', 'readwrite').objectStore('f').delete(k); } catch(e){} }
+async function cargarFotosLocal(){
+  try {
+    const d = await idb();
+    const st = d.transaction('f').objectStore('f');
+    const req = st.openCursor();
+    req.onsuccess = () => { const c = req.result; if (c){ OFF.FOTOS[c.key] = c.value; c.continue(); } };
+  } catch(e){}
+}
+function fotoDe(c){ return OFF.FOTOS[c] || ''; }
+/** Baja en segundo plano las fotos nuevas o cambiadas desde la última vez */
+async function bajarFotos(sn){
+  if (!sn || !sn.fotos || OFF.bajandoFotos || !OFF.en) return;
+  const pend = OFF.cola.filter(o => o.k === 'FOTO').map(o => o.c);
+  const faltan = Object.keys(sn.fotos).filter(c => OFF.FT[c] !== sn.fotos[c] && pend.indexOf(c) < 0);
+  if (!faltan.length) return;
+  OFF.bajandoFotos = true;
+  try {
+    for (let i = 0; i < faltan.length; i += 15){
+      const lote = faltan.slice(i, i + 15);
+      const r = await remoto('fotos', [S.u, S.pin, lote], 60000);
+      Object.keys(r).forEach(c => {
+        const url = 'data:image/jpeg;base64,' + r[c];
+        OFF.FOTOS[c] = url; idbPut(c, url); OFF.FT[c] = sn.fotos[c];
+      });
+      lsSet('fotoT', OFF.FT);
+    }
+  } catch(e){} finally { OFF.bajandoFotos = false; }
+}
+/** Achica la foto a ~480 px y menos de 30 KB */
+async function comprimirFoto(file){
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; });
+    let lado = 480, q = 0.72, out = '';
+    for (let n = 0; n < 8; n++){
+      const k = Math.min(1, lado / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+      cx.drawImage(img, 0, 0, cv.width, cv.height);
+      out = cv.toDataURL('image/jpeg', q);
+      if (out.length < 40000) break;
+      if (q > 0.45) q -= 0.12; else lado = Math.round(lado * 0.8);
+    }
+    return out;
+  } finally { URL.revokeObjectURL(url); }
+}
+let _fotoPara = '';
+function pedirFoto(c){
+  if (!c) return;
+  _fotoPara = c;
+  let inp = document.getElementById('inpFotoRef');
+  if (!inp){
+    inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'inpFotoRef'; inp.style.display = 'none';
+    inp.addEventListener('change', async ev => {
+      const f = ev.target.files && ev.target.files[0]; ev.target.value = '';
+      if (f) await guardarFotoLocal(_fotoPara, f);
+    });
+    document.body.appendChild(inp);
+  }
+  inp.click();
+}
+async function guardarFotoLocal(c, file){
+  try {
+    toast('📷 Procesando foto…');
+    const url = await comprimirFoto(file);
+    OFF.FOTOS[c] = url; idbPut(c, url);
+    OFF.cola = OFF.cola.filter(o => !(o.k === 'FOTO' && o.c === c && o.est !== 'enviando'));
+    OFF.cola.push({opid: nuevoOpid(), ms: Date.now(), u: S.u, k: 'FOTO', c: c, data: url.split(',')[1], m: {tipo: 'FOTO', ubicacion: ''},
+                   un: '', q: 0, efs: [], est: 'pendiente', error: ''});
+    guardarCola(); programarSync(400);
+    toast('✅ Foto guardada' + (OFF.en ? '. Subiendo…' : '. Se subirá cuando haya señal.'));
+    try { trasFoto(c); } catch(e){}
+  } catch(e){ toast('⚠️ No se pudo usar esa foto. Intenta con otra.', true); }
+}
+function verFoto(c){
+  const u = fotoDe(c); if (!u) return;
+  let v = document.getElementById('visorFoto');
+  if (!v){
+    v = document.createElement('div'); v.id = 'visorFoto';
+    v.style.cssText = 'position:fixed;inset:0;background:rgba(5,1,15,.92);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
+    v.onclick = () => v.remove();
+    document.body.appendChild(v);
+  }
+  v.innerHTML = `<img src="${u}" style="max-width:100%;max-height:90vh;border-radius:12px">`;
 }
