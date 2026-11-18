@@ -1,7 +1,7 @@
 /* Service worker · Inventario Surface v2.4
  * Guarda la app en el celular para abrirla sin señal.
  * Los datos NO pasan por aquí: van directo a Google (Apps Script). */
-const VERSION = 'inv-2.4.1';
+const VERSION = 'inv-2.4.2';
 const APP = ['./', 'index.html', 'offline.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 const LIBS = [
   'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
@@ -10,7 +10,7 @@ const LIBS = [
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(VERSION);
-    await c.addAll(APP);
+    await c.addAll(APP.map(u => new Request(u, {cache: 'reload'})));   /* sin caché del navegador: siempre la versión nueva */
     await Promise.all(LIBS.map(u => c.add(new Request(u, {mode: 'no-cors'})).catch(() => {})));
     await self.skipWaiting();
   })());
@@ -30,7 +30,7 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     const c = await caches.open(VERSION);
     const guardado = await c.match(req, {ignoreSearch: propio});
-    const red = fetch(req).then(r => { if (r && (r.ok || r.type === 'opaque')) c.put(req, r.clone()); return r; }).catch(() => null);
+    const red = fetch(propio ? new Request(req, {cache: 'no-cache'}) : req).then(r => { if (r && (r.ok || r.type === 'opaque')) c.put(req, r.clone()); return r; }).catch(() => null);
     if (guardado){ e.waitUntil(red); return guardado; }               /* rápido: lo guardado, y se actualiza por detrás */
     const r = await red;
     if (r) return r;

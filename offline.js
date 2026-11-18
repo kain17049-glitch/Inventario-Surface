@@ -5,7 +5,7 @@
  * en segundo plano. Sin señal, espera y se sube solo cuando vuelve.
  */
 const API_URL = 'https:' + String.fromCharCode(47, 47) + 'script.google.com/macros/s/AKfycbyXNamoz37LfEsn67XloeSKID490RBDJtJO9ZrYTswXYtp4bqABtJDuyFGOwMFijaoVLA/exec';
-const APP_VER = '2.4.1';
+const APP_VER = '2.4.2';
 const OFF = { en: true, snap: null, ST: {}, TOT: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
 const LECTURAS = ['historial', 'porEstado', 'stockBajo', 'pendientes', 'listaProyectos', 'resumenProyecto', 'kardex',
                   'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea'];
@@ -376,7 +376,7 @@ function pintarPanelSync(){
   const mias = OFF.cola.filter(o => o.u === S.u);
   const otros = OFF.cola.length - mias.length;
   const est = OFF.en ? '🟢 Con conexión' : '📴 Sin conexión';
-  $('syEstado').innerHTML = `${est}<br><small>Datos del ${esc((OFF.snap && OFF.snap.ts) || '—')}${OFF.tSnap ? ' (' + hace(OFF.tSnap) + ')' : ''} · app ${APP_VER}</small>` +
+  $('syEstado').innerHTML = `${est}<br><small>Datos del ${esc((OFF.snap && OFF.snap.ts) || '—')}${OFF.tSnap ? ' (' + hace(OFF.tSnap) + ')' : ''} · app ${APP_VER} · <a href="#" onclick="actualizarApp();return false" style="color:#cfc6ff">buscar actualización</a></small>` +
     (otros ? `<div class="aviso">Hay ${otros} movimiento(s) de otro usuario en este celular. Se subirán cuando esa persona entre.</div>` : '');
   $('syLista').innerHTML = mias.length ? mias.slice().reverse().map(o => {
     const T = o.k === 'CREAR' ? {t: 'Producto nuevo'} : (TIPOS[o.m.tipo] || {t: o.m.tipo});
@@ -399,7 +399,29 @@ function iniciarCapaOffline(){
   window.addEventListener('offline', () => { OFF.en = false; pintarChipSync(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.u) tickSync(); });
   setInterval(() => { if (document.visibilityState === 'visible' && S.u) tickSync(); }, 30000);
-  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+    const habia = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(reg => {
+      OFF.reg = reg;
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    }).catch(() => {});
+    /* Cuando llega una versión nueva de la app, se recarga sola (solo si no estás a mitad de algo) */
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!habia || OFF.recargando) return;
+      OFF.recargando = true;
+      const ocupado = (document.getElementById('codigo') || {}).value || document.querySelector('.modal:not(.oculto)');
+      if (ocupado) toast('🔄 Hay una versión nueva de la app. Ciérrala y ábrela para usarla.');
+      else location.reload();
+    });
+  }
+}
+/** Botón del panel: busca versión nueva y recarga */
+async function actualizarApp(){
+  if (!navigator.onLine){ toast('📴 Necesitas señal para actualizar la app.', true); return; }
+  toast('🔄 Buscando versión nueva…');
+  try { if (OFF.reg) await OFF.reg.update(); } catch(e){}
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch(e){}
+  setTimeout(() => location.reload(), 600);
 }
 function tickSync(){
   if (OFF.cola.some(o => o.est === 'pendiente' && o.u === S.u)) sincronizarCola(false);
