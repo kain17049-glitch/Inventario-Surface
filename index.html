@@ -71,6 +71,11 @@
   .sug{border:1px solid var(--line2);border-radius:12px;margin-top:6px;overflow:auto;max-height:340px;background:var(--bg2)}
   .sug div{padding:10px 12px;border-top:1px solid var(--line)}.sug div:first-child{border-top:0}
   .sug small{color:var(--muted)}
+  .sug .sq{float:right;font-size:12px;font-weight:700;color:#cfc6ff;background:rgba(124,92,255,.18);border-radius:8px;padding:1px 7px;margin-left:8px}
+  .sug .sq.bajo{color:#ff8a8a;background:rgba(255,80,80,.15)}.sug .sq.cero{color:var(--muted);background:transparent}
+  .stockAqui{margin:2px 0 8px;padding:8px 10px;border-radius:10px;background:rgba(124,92,255,.14);font-size:14px}
+  .stockAqui:empty{display:none}.stockAqui.bajo{background:rgba(255,80,80,.14)}
+  .tmpCod{color:#ffd27a}
   .prod{background:var(--card2);border:1px solid var(--line2);border-radius:12px;padding:11px 12px;margin-top:8px}
   .prod strong{display:block}.meta{font-size:12.5px;color:var(--muted)}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -237,6 +242,7 @@
       <label id="lblCant" for="cant">Cantidad</label>
       <div id="bSigno" class="seg oculto"><button id="sMas" class="on" onclick="setSigno(1)">＋ Sumar</button><button id="sMenos" onclick="setSigno(-1)">－ Restar</button></div>
       <div id="bPres" class="seg oculto"><button id="pUnd" class="on" onclick="setPres(false)">UND</button><button id="pPres" onclick="setPres(true)">CAJA</button></div>
+      <div id="stockAqui" class="stockAqui"></div>
       <div class="cant">
         <button class="btn" onclick="paso(-1)">−</button>
         <input id="cant" type="number" inputmode="decimal" step="any" min="0" value="1">
@@ -630,7 +636,7 @@ async function recargarDatos(){
 }
 
 function cargarDatos(r){
-  S.u = r.usuario; S.productos = r.productos; S.ubicaciones = r.ubicaciones; S.familias = r.familias;
+  S.u = r.usuario; S.productos = r.productos.concat(productosEnCola().filter(p => !r.productos.some(x => x.c === p.c))); S.ubicaciones = r.ubicaciones; S.familias = r.familias;
   S.proyectos = r.proyectos; S.areas = r.areas; S.unidades = r.unidades; S.cfg = r.cfg;
   indexar();
   $('arranque').style.display = 'none';
@@ -758,7 +764,10 @@ function buscarLocal(txt){
 }
 function pintarSugerencias(box, lista, onPick){
   if (!lista.length){ box.classList.add('oculto'); return; }
-  box.innerHTML = lista.map((p, i) => `<div data-i="${i}">${esc(p.d)}<br><small>${esc(p.c)} · ${esc(p.u)}${p.act === false ? ' · inactivo' : ''}</small></div>`).join('');
+  box.innerHTML = lista.map((p, i) => {
+    const q = stockTotalLocal(p.c), cls = q <= 0 ? 'cero' : (p.min > 0 && q < p.min ? 'bajo' : '');
+    return `<div data-i="${i}">${esc(p.d)}<br><small>${esc(p.c)} · ${esc(p.u)}${p.act === false ? ' · inactivo' : ''}</small><span class="sq ${cls}">${fmtN(q)} ${esc(p.u)}</span></div>`;
+  }).join('');
   box.classList.remove('oculto');
   box.querySelectorAll('div').forEach(d => d.onclick = () => { box.classList.add('oculto'); onPick(lista[+d.dataset.i]); });
 }
@@ -802,7 +811,19 @@ function elegirProducto(p){
       (d.enUso ? ` · En uso <b>${fmtN(d.enUso)}</b>` : '') + (d.bajo ? ' <span class="badge SALIDA">Stock bajo</span>' : '');
     autoUbicacion(); actualizarProductoUI();
   }).catch(() => { const el = $('prodStock'); if (el) el.textContent = ''; });
-  if (S.tipo !== 'CONTEO') $('cant').select();
+  if (S.tipo !== 'CONTEO'){ try { $('cant').focus({preventScroll: true}); $('cant').select(); } catch(e){} }
+  /* Deja a la vista el producto y su stock (el lector no debe mandar la pantalla abajo) */
+  setTimeout(() => { const r = $('prodCard').getBoundingClientRect(); if (r.top < 70 || r.top > innerHeight * 0.45) window.scrollBy(0, r.top - 80); }, 60);
+}
+/** Stock justo encima de la cantidad: en la ubicación elegida y en total */
+function pintarStockAqui(){
+  const el = $('stockAqui'), p = S.prod;
+  if (!p){ el.innerHTML = ''; return; }
+  const T = TIPOS[S.tipo], e = T.estO ? $('estO').value : 'DISPONIBLE', ub = $('ubic').value;
+  const tot = stockTotalLocal(p.c);
+  el.innerHTML = `📦 ${ub ? `En ${esc(ub)}${e !== 'DISPONIBLE' ? ' (' + esc(EST[e]) + ')' : ''}: <b>${fmtN(cantLocal(p.c, ub, e))}</b> ${esc(p.u)} · ` : ''}Total: <b>${fmtN(tot)}</b> ${esc(p.u)}` +
+    (p.min > 0 ? ` <small>(mín. ${fmtN(p.min)})</small>` : '');
+  el.classList.toggle('bajo', p.min > 0 && tot < p.min);
 }
 /** Elige sola la ubicación si el producto está en un único lugar */
 function autoUbicacion(){
@@ -822,9 +843,9 @@ function actualizarProductoUI(){
   if (p && S.det){
     const e = T.estO ? $('estO').value : (S.tipo === 'DEVOLUCION' || S.tipo === 'ENTRADA' ? null : 'DISPONIBLE');
     const lugares = S.det.stock.filter(s => (!e || s.e === e) && s.q !== 0);
-    ch.innerHTML = S.tipo === 'CONTEO' ? '<span class="ayuda">El sistema no muestra cuánto debería haber, para que el conteo sea real.</span>'
-      : lugares.map(s => `<button class="chip ${s.u === $('ubic').value ? 'on' : ''}" data-u="${esc(s.u)}" onclick="$('ubic').value=this.dataset.u;actualizarProductoUI()">${esc(s.u)}${!e && s.e !== 'DISPONIBLE' ? ' · ' + esc(EST[s.e]) : ''}: ${fmtN(s.q)}</button>`).join('');
+    ch.innerHTML = lugares.map(s => `<button class="chip ${s.u === $('ubic').value ? 'on' : ''}" data-u="${esc(s.u)}" onclick="$('ubic').value=this.dataset.u;actualizarProductoUI()">${esc(s.u)}${!e && s.e !== 'DISPONIBLE' ? ' · ' + esc(EST[s.e]) : ''}: ${fmtN(s.q)}</button>`).join('');
   } else ch.innerHTML = '';
+  pintarStockAqui();
   /* Préstamos pendientes para devolución */
   if (T.pend){
     const lista = p && S.det ? S.det.pendientes : [];
@@ -861,11 +882,12 @@ async function guardarProducto(){
     unidad: $('npUnidad').value, presentacion: $('npPres').value, factor: $('npFac').value, ubicHabitual: $('npUbic').value,
     minimo: $('npMin').value, kardex: $('npKdx').value, codBarras: $('npBar').value, notas: $('npNotas').value, activo: $('npActivo').checked};
   try {
+    if (S.editando && esProvisional(S.editando)) throw new Error('Este producto aún no se sube a la hoja. Podrás editarlo cuando tenga su código definitivo.');
     const p = S.editando ? await api('editarProducto', S.editando, d) : await api('crearProducto', d);
     const i = S.productos.findIndex(x => x.c === p.c);
     if (i >= 0) S.productos[i] = p; else S.productos.push(p);
     indexar(); cerrarModal('mProd');
-    toast((S.editando ? '✅ Guardado: ' : '✅ Creado: ') + esc(p.c));
+    toast(p.tmp ? '📴 Creado sin conexión con código provisional <b>' + esc(p.c) + '</b>. Al subir recibe su código definitivo.' : (S.editando ? '✅ Guardado: ' : '✅ Creado: ') + esc(p.c));
     if (S.editando){ if ($('vConsultar').classList.contains('on')) consultar(p.c); }
     else { ir('vRegistrar'); elegirProducto(p); }
   } catch(e){ toast('⚠️ ' + esc(e.message), true); }

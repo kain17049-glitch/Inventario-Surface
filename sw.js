@@ -1,7 +1,7 @@
 /* Service worker · Inventario Surface v2.4
  * Guarda la app en el celular para abrirla sin señal.
  * Los datos NO pasan por aquí: van directo a Google (Apps Script). */
-const VERSION = 'inv-2.4.0';
+const VERSION = 'inv-2.4.1';
 const APP = ['./', 'index.html', 'offline.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 const LIBS = [
   'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',

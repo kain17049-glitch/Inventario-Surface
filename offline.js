@@ -5,8 +5,8 @@
  * en segundo plano. Sin señal, espera y se sube solo cuando vuelve.
  */
 const API_URL = 'https:' + String.fromCharCode(47, 47) + 'script.google.com/macros/s/AKfycbyXNamoz37LfEsn67XloeSKID490RBDJtJO9ZrYTswXYtp4bqABtJDuyFGOwMFijaoVLA/exec';
-const APP_VER = '2.4.0';
-const OFF = { en: true, snap: null, ST: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
+const APP_VER = '2.4.1';
+const OFF = { en: true, snap: null, ST: {}, TOT: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
 const LECTURAS = ['historial', 'porEstado', 'stockBajo', 'pendientes', 'listaProyectos', 'resumenProyecto', 'kardex',
                   'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea'];
 
@@ -62,7 +62,13 @@ function recalcLocal(){
   ((OFF.snap && OFF.snap.stock) || []).forEach(x => { const k = claveSt(x[0], x[1], x[2]); m[k] = r3(( m[k] || 0) + x[3]); });
   OFF.cola.forEach(o => { if (o.est === 'error') return; (o.efs || []).forEach(e => { const k = claveSt(e[0], e[1], e[2]); m[k] = r3((m[k] || 0) + e[3]); }); });
   OFF.ST = m;
+  const t = {};
+  Object.keys(m).forEach(k => { const z = k.split('||'); if (z[2] === 'DISPONIBLE') t[z[0]] = r3((t[z[0]] || 0) + m[k]); });
+  OFF.TOT = t;
 }
+/** Stock disponible total de un producto (todas las ubicaciones), con lo que está en cola */
+function stockTotalLocal(c){ return OFF.TOT[c] || 0; }
+function esProvisional(c){ return OFF.cola.some(o => o.k === 'CREAR' && o.c === c); }
 function r3(x){ return Math.round(x * 1000) / 1000; }
 function cantLocal(c, u, e){ return OFF.ST[claveSt(c, u, e)] || 0; }
 function prodLocal(cod){
@@ -128,7 +134,7 @@ function buscarOffline(codigo){
   const cons = movs.filter(m => m.t === 'SALIDA' && m.e === 'OK' && m.ms >= desde).reduce((s, m) => s + m.q, 0)
     + OFF.cola.filter(o => o.est !== 'error' && o.c === p.c && o.m.tipo === 'SALIDA').reduce((s, o) => s + o.q, 0);
   const total = r3(tot.DISPONIBLE + tot.REVISION + tot.VENTA);
-  const cola = OFF.cola.filter(o => o.c === p.c).slice().reverse().map(movDeCola);
+  const cola = OFF.cola.filter(o => o.c === p.c && o.k !== 'CREAR').slice().reverse().map(movDeCola);
   return {tipo: 'producto', producto: p, stock: stock, tot: tot, total: total, enUso: enUso, pendientes: pend,
           consumoMes: r3(cons / 3), valor: Math.round(total * (p.cp || 0) * 100) / 100,
           bajo: p.min > 0 && tot.DISPONIBLE < p.min,
@@ -191,6 +197,47 @@ function registrarOffline(m){
           unidad: p.u, cantidad: q, ubicacion: ub, destino: dest, stock: nuevos, enCola: true};
 }
 
+/** Producto nuevo sin señal: código provisional (ej. CIN-N7KQ) que se cambia por el definitivo al subir */
+function crearProductoOffline(d){
+  const desc = String(d.descripcion || '').trim();
+  if (!desc) throw new Error('Escribe la descripción del producto.');
+  const fam = S.familias.find(f => f.p === String(d.familia || '').trim().toUpperCase());
+  if (!fam) throw new Error('Elige la familia.');
+  const igual = S.productos.find(x => x.d.toUpperCase() === desc.toUpperCase());
+  if (igual) throw new Error('Ya existe "' + igual.d + '" con el código ' + igual.c + '.');
+  const bar = String(d.codBarras || '').trim();
+  if (bar){
+    if (prodLocal(bar)) throw new Error('El código de barras ' + bar + ' ya pertenece a otro producto.');
+    if (ubicTodas().some(x => x.c.toUpperCase() === bar.toUpperCase())) throw new Error('Ese código es de una ubicación, no de un producto.');
+  }
+  const unidad = String(d.unidad || '').trim().toUpperCase() || 'UND';
+  const pres = String(d.presentacion || '').trim().toUpperCase();
+  const fac = pres ? (parseFloat(String(d.factor).replace(',', '.')) || 0) : 0;
+  if (pres && fac <= 0) throw new Error('Indica cuántas ' + unidad + ' trae cada ' + pres + '.');
+  let tmp;
+  do { tmp = fam.p + '-N' + Math.random().toString(36).slice(2, 5).toUpperCase(); } while (prodLocal(tmp));
+  const kdx = ['NO', 'DIARIO', 'SEMANAL'].indexOf(String(d.kardex || '').toUpperCase()) >= 0 ? String(d.kardex).toUpperCase() : 'NO';
+  const p = {c: tmp, d: desc, fam: fam.f, cla: String(d.clase || '').trim(), mar: String(d.marca || '').trim(), u: unidad, pres: pres, fac: fac,
+             bar: bar, ubh: String(d.ubicHabitual || '').trim(), min: parseFloat(d.minimo) || 0, kdx: kdx, cp: 0, act: true,
+             notas: String(d.notas || '').trim(), tmp: true};
+  OFF.cola.push({opid: nuevoOpid(), ms: Date.now(), u: S.u, k: 'CREAR', d: d, c: tmp, p: p, m: {tipo: 'CREAR', ubicacion: p.ubh},
+                 un: unidad, q: 0, efs: [], est: 'pendiente', error: ''});
+  guardarCola(); programarSync(400);
+  return p;
+}
+/** Productos creados sin señal que aún no están en la copia del servidor */
+function productosEnCola(){ return OFF.cola.filter(o => o.k === 'CREAR').map(o => o.p); }
+/** Cambia el código provisional por el definitivo en todo lo que sigue en la cola */
+function cambiarCodigo(tmp, real){
+  OFF.cola.forEach(o => {
+    if (o.c === tmp) o.c = real;
+    if (o.m && o.m.codigo === tmp) o.m.codigo = real;
+    (o.efs || []).forEach(e => { if (e[0] === tmp) e[0] = real; });
+  });
+  if (S.prod && S.prod.c === tmp){ S.prod = Object.assign({}, S.prod, {c: real, tmp: false}); const c = document.getElementById('codigo'); if (c && c.value === tmp) c.value = real; }
+  toast('☁️ Producto nuevo subido: ' + esc(tmp) + ' → <b>' + esc(real) + '</b>');
+}
+
 /* ---------- Sincronización ---------- */
 function programarSync(ms){ clearTimeout(OFF.timer); OFF.timer = setTimeout(() => sincronizarCola(false), ms || 800); }
 async function sincronizarCola(manual){
@@ -200,8 +247,10 @@ async function sincronizarCola(manual){
   OFF.sinc = true; pintarChipSync();
   try {
     const lote = pend.slice(0, 15);
-    const r = await remoto('sincronizar', [S.u, S.pin, lote.map(o => ({opid: o.opid, ms: o.ms, m: o.m})), dispositivo()], 180000);
+    const r = await remoto('sincronizar', [S.u, S.pin, lote.map(o => o.k === 'CREAR' ? {opid: o.opid, ms: o.ms, k: 'CREAR', d: o.d, tmp: o.c}
+                                                                       : {opid: o.opid, ms: o.ms, m: o.m}), dispositivo()], 180000);
     const porId = {}; r.res.forEach(x => porId[x.opid] = x);
+    r.res.forEach(x => { if (x.ok && x.tmp && x.cod) cambiarCodigo(x.tmp, x.cod); });
     let err = 0, ok = 0;
     OFF.cola = OFF.cola.filter(o => {
       const x = porId[o.opid]; if (!x) return true;
@@ -232,7 +281,8 @@ async function refrescarSnap(avisar){
 /** Actualiza catálogos sin interrumpir lo que el usuario está haciendo */
 function aplicarSnap(sn){
   if (!sn || !S.u) return;
-  S.productos = sn.productos; S.proyectos = sn.proyectos; S.ubicaciones = sn.ubicaciones; S.familias = sn.familias;
+  const enCola = productosEnCola().filter(p => !sn.productos.some(x => x.c === p.c));
+  S.productos = sn.productos.concat(enCola); S.proyectos = sn.proyectos; S.ubicaciones = sn.ubicaciones; S.familias = sn.familias;
   S.areas = sn.areas; S.unidades = sn.unidades; S.cfg = sn.cfg;
   indexar();
   try { pintarProyectosSelect(); } catch(e){}
@@ -243,6 +293,13 @@ function aplicarSnap(sn){
 async function rutaApi(fn, args){
   if (fn === 'buscar') return buscarOffline(args[0]);
   if (fn === 'registrar') return registrarOffline(args[0]);
+  if (fn === 'crearProducto'){
+    if (OFF.en){
+      try { const p = await remoto(fn, [S.u, S.pin].concat(args)); setTimeout(() => refrescarSnap(false), 300); return p; }
+      catch(e){ if (!e.red) throw e; }
+    }
+    return crearProductoOffline(args[0]);
+  }
   if (fn === 'iniciar'){
     const sn = await refrescarSnap(false);
     if (sn) return sn;
@@ -322,14 +379,17 @@ function pintarPanelSync(){
   $('syEstado').innerHTML = `${est}<br><small>Datos del ${esc((OFF.snap && OFF.snap.ts) || '—')}${OFF.tSnap ? ' (' + hace(OFF.tSnap) + ')' : ''} · app ${APP_VER}</small>` +
     (otros ? `<div class="aviso">Hay ${otros} movimiento(s) de otro usuario en este celular. Se subirán cuando esa persona entre.</div>` : '');
   $('syLista').innerHTML = mias.length ? mias.slice().reverse().map(o => {
-    const T = TIPOS[o.m.tipo] || {t: o.m.tipo};
+    const T = o.k === 'CREAR' ? {t: 'Producto nuevo'} : (TIPOS[o.m.tipo] || {t: o.m.tipo});
     return `<div class="item"><div class="top"><span><span class="badge ${o.m.tipo}">${esc(T.t)}</span> ${o.est === 'error' ? '<span class="badge SALIDA">Error</span>' : '<span class="badge">Por subir</span>'}</span><span>${esc(fechaCorta(new Date(o.ms)))}</span></div>
-      <div><b>${fmtN(o.q)} ${esc(o.un)}</b> · ${esc(o.d)}</div><div class="meta">${esc(o.m.ubicacion)}${o.m.destino ? ' → ' + esc(o.m.destino) : ''}</div>
+      <div>${o.k === 'CREAR' ? `<b class="tmpCod">${esc(o.c)}</b> · ${esc(o.p.d)}` : `<b>${fmtN(o.q)} ${esc(o.un)}</b> · ${esc(o.d)}`}</div><div class="meta">${esc(o.m.ubicacion)}${o.m.destino ? ' → ' + esc(o.m.destino) : ''}</div>
       ${o.est === 'error' ? `<div class="aviso error">${esc(o.error)}</div><div class="fila" style="margin-top:8px"><button class="btn sm" onclick="reintentarOp('${o.opid}')">Reintentar</button> <button class="btn sm peligro" onclick="descartarOp('${o.opid}')">Descartar</button></div>` : ''}</div>`;
   }).join('') : '<div class="ayuda">✓ No hay nada pendiente: todo está en la hoja.</div>';
 }
 function reintentarOp(id){ const o = OFF.cola.find(x => x.opid === id); if (o){ o.est = 'pendiente'; o.error = ''; guardarCola(); recalcLocal(); sincronizarCola(true); } }
-function descartarOp(id){ OFF.cola = OFF.cola.filter(x => x.opid !== id); guardarCola(); recalcLocal(); pintarPanelSync(); toast('Movimiento descartado. No se guardó en la hoja.'); }
+function descartarOp(id){
+  const o = OFF.cola.find(x => x.opid === id);
+  if (o && o.k === 'CREAR'){ OFF.cola = OFF.cola.filter(x => x.c !== o.c); S.productos = S.productos.filter(p => p.c !== o.c); indexar(); }
+  OFF.cola = OFF.cola.filter(x => x.opid !== id); guardarCola(); recalcLocal(); pintarPanelSync(); toast('Movimiento descartado. No se guardó en la hoja.'); }
 
 /* ---------- Arranque de la capa ---------- */
 function iniciarCapaOffline(){
