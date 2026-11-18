@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<!-- SISTEMA DE INVENTARIO · GRUPO SURFACE · app instalable v2.4 (18 nov 2026) -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Inventario · Grupo Surface</title>
+<meta name="theme-color" content="#13072b">
+<meta name="description" content="Inventario de almacenes · Grupo Surface">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#13072b; --bg2:#1a0a3b; --card:#22104c; --card2:#2c1660; --line:#3b2276; --line2:#4c2f93;
+    --ink:#ffffff; --muted:#bfb0ec; --dim:#8f7fc4;
+    --acc:#5a1ef0; --acc2:#7444ff; --brand:#4F10E6; --tq:#33c4c2;
+    --ok:#3fd49b; --warn:#ffb648; --bad:#ff6b8b;
+    --r:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.45 "Lexend",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{background:radial-gradient(120% 60% at 50% -10%,#2a0f6b 0%,var(--bg) 60%) fixed}
+  button,input,select,textarea{font-family:inherit}
+
+  header{position:sticky;top:0;z-index:5;background:rgba(19,7,43,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px}
+  .marca{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
+  .logo{width:34px;height:34px;border-radius:50%;background:var(--brand);display:grid;place-items:center;flex:0 0 auto;box-shadow:0 0 0 2px rgba(255,255,255,.08)}
+  .logo svg{width:22px;height:22px}
+  .marca .t1{font-size:10.5px;color:var(--muted);line-height:1}
+  .marca .t2{font-size:17px;font-weight:700;letter-spacing:1.5px;line-height:1.1}
+  #chipSync{border-radius:99px;padding:6px 10px;font-size:13px;font-weight:600;white-space:nowrap;border:1px solid var(--line2);background:var(--card2);color:#fff;min-width:38px}
+  #chipSync.ok{color:var(--ok);border-color:rgba(63,212,155,.45)}
+  #chipSync.off{color:var(--muted)}
+  #chipSync.pend,#chipSync.sync{color:var(--warn);border-color:rgba(255,182,72,.5)}
+  #chipSync.err{background:rgba(255,107,139,.18);color:var(--bad);border-color:rgba(255,107,139,.6)}
+  #chipUsuario{background:var(--card2);border:1px solid var(--line2);color:#fff;border-radius:99px;padding:6px 11px;font-size:13px;white-space:nowrap}
+
+  main{padding:14px 12px 100px;max-width:680px;margin:0 auto}
+  .vista{display:none}.vista.on{display:block}
+  h2{font-size:22px;margin:4px 2px 12px;font-weight:700}
+  h3{font-size:15px;margin:0 0 8px;font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+  .card.flat{background:var(--bg2)}
+  label{display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin:12px 0 6px}
+  input,select,textarea{width:100%;font-size:16px;padding:12px 13px;border:1px solid var(--line2);border-radius:12px;background:var(--bg2);color:var(--ink)}
+  input::placeholder,textarea::placeholder{color:var(--dim)}
+  select option{background:var(--bg2);color:#fff}
+  textarea{min-height:64px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--acc2);border-color:transparent}
+  .fila{display:flex;gap:8px;align-items:stretch}.fila>*{flex:1;min-width:0}
+  .btn{border:1px solid var(--line2);border-radius:12px;padding:12px 14px;font-size:15px;font-weight:600;background:var(--card2);color:#fff;cursor:pointer}
+  .btn.pri{background:var(--acc);border-color:var(--acc)}
+  .btn.tq{background:transparent;border-color:var(--tq);color:var(--tq)}
+  .btn.big{width:100%;padding:15px;font-size:16.5px;margin-top:14px}
+  .btn.sm{padding:7px 11px;font-size:13px;border-radius:10px}
+  .btn.cam{flex:0 0 52px;font-size:20px;padding:0}
+  .btn.peligro{background:rgba(255,107,139,.12);border-color:rgba(255,107,139,.4);color:var(--bad)}
+  .btn:disabled{opacity:.5}
+  .acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .tipo{border:1px solid var(--line2);background:var(--bg2);border-radius:12px;padding:9px 2px 8px;font-size:12.5px;font-weight:500;text-align:center;color:var(--muted)}
+  .tipo b{display:block;font-size:19px;margin-bottom:1px;color:#fff}
+  .tipo.on{background:var(--acc);border-color:var(--acc2);color:#fff}
+  .ayuda{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .sug{border:1px solid var(--line2);border-radius:12px;margin-top:6px;overflow:auto;max-height:340px;background:var(--bg2)}
+  .sug div{padding:10px 12px;border-top:1px solid var(--line)}.sug div:first-child{border-top:0}
+  .sug small{color:var(--muted)}
+  .prod{background:var(--card2);border:1px solid var(--line2);border-radius:12px;padding:11px 12px;margin-top:8px}
+  .prod strong{display:block}.meta{font-size:12.5px;color:var(--muted)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{border:1px solid var(--line2);background:var(--bg2);border-radius:99px;padding:5px 10px;font-size:12.5px;color:#fff}
+  .chip.on{background:var(--tq);border-color:var(--tq);color:#10202a;font-weight:600}
+  .aviso{background:rgba(255,182,72,.1);border:1px solid rgba(255,182,72,.35);color:#ffd59a;border-radius:12px;padding:11px 12px;font-size:14px;margin-top:8px}
+  .error{background:rgba(255,107,139,.1);border-color:rgba(255,107,139,.4);color:#ffb3c4}
+  .exito{background:rgba(63,212,155,.1);border:1px solid rgba(63,212,155,.35);color:#a9f0d3}
+  .cant{display:flex;gap:6px}.cant input{text-align:center;font-size:21px;font-weight:700}
+  .cant .btn{flex:0 0 54px;font-size:22px}
+  .seg{display:flex;background:var(--bg2);border:1px solid var(--line2);border-radius:12px;padding:3px;gap:3px;margin-bottom:6px}
+  .seg button{flex:1;border:0;border-radius:9px;padding:8px 6px;background:transparent;color:var(--muted);font-size:13.5px;font-weight:500}
+  .seg button.on{background:var(--acc);color:#fff}
+  .oculto{display:none!important}
+  nav{position:fixed;bottom:0;left:0;right:0;background:rgba(26,10,59,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;z-index:6;padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;border:0;background:none;padding:9px 0 10px;font-size:10.5px;color:var(--dim);min-width:0}
+  nav button b{display:block;font-size:20px;filter:grayscale(.6);opacity:.75}
+  nav button.on{color:#fff;font-weight:600}nav button.on b{filter:none;opacity:1}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px}
+  .kpi .v{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;font-variant-numeric:tabular-nums}.kpi .l{font-size:11.5px;color:var(--muted)}
+  .item{border-top:1px solid var(--line);padding:10px 0}.item:first-of-type{border-top:0}
+  .item .top{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(51,196,194,.15);color:var(--tq)}
+  .badge.SALIDA,.badge.BAJA{background:rgba(255,107,139,.14);color:#ff9db3}
+  .badge.PRESTAMO{background:rgba(255,182,72,.14);color:var(--warn)}
+  .badge.TRASLADO,.badge.CAMBIO{background:rgba(116,68,255,.25);color:#c9b5ff}
+  .badge.AJUSTE,.badge.CONTEO{background:rgba(255,255,255,.1);color:#fff}
+  .badge.anul,.badge.ANULACION{background:rgba(255,107,139,.2);color:var(--bad)}
+  .badge.REVISION{background:rgba(255,182,72,.14);color:var(--warn)}.badge.VENTA{background:rgba(255,107,139,.14);color:#ff9db3}
+  .tachado{text-decoration:line-through;opacity:.55}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{padding:8px 4px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+  th{font-size:11.5px;color:var(--muted);border-top:0;font-weight:500}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}td.n{font-weight:600}
+  .tabla-scroll{overflow-x:auto;margin:0 -4px}
+  #toast{position:fixed;left:12px;right:12px;bottom:86px;z-index:40;max-width:620px;margin:0 auto;background:#fff;color:#1b0b45;border-radius:14px;padding:12px 14px;font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.4);transform:translateY(170%);transition:transform .25s,visibility .25s;visibility:hidden}
+  #toast.on{transform:none;visibility:visible}#toast.err{background:var(--bad);color:#fff}
+  .modal{position:fixed;inset:0;background:rgba(8,2,22,.75);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+  .modal .caja{background:var(--bg2);border:1px solid var(--line2);border-bottom:0;width:100%;max-width:580px;border-radius:20px 20px 0 0;padding:16px;max-height:92vh;overflow:auto}
+  .modal .cab{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  #lector{width:100%;min-height:40px;border-radius:12px;overflow:hidden;background:#000}
+  .login{min-height:80vh;display:flex;flex-direction:column;justify-content:center;max-width:380px;margin:0 auto}
+  .login .logo{width:72px;height:72px;margin:0 auto 10px}.login .logo svg{width:46px;height:46px}
+  .nombres .btn{width:100%;margin-top:8px;text-align:left;font-size:16px}
+  .etiquetas{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .etq{border:1px dashed #999;border-radius:6px;padding:6px;text-align:center;background:#fff;color:#000}
+  .etq svg{max-width:100%;height:auto}.etq .t{font-size:12px;font-weight:600;line-height:1.2}.etq .s{font-size:10.5px;color:#444}
+  .badge.OPERATIVA,.badge.AL_DIA{background:rgba(63,212,155,.14);color:var(--ok)}
+  .badge.MANTENIMIENTO,.badge.PROXIMO{background:rgba(255,182,72,.14);color:var(--warn)}
+  .badge.AVERIADA,.badge.VENCIDO{background:rgba(255,107,139,.18);color:var(--bad)}
+  .badge.BAJA,.badge.INACTIVO{background:rgba(255,255,255,.08);color:var(--dim)}
+  .card.alerta-roja{border-color:var(--bad)}.card.alerta-ambar{border-color:var(--warn)}
+  #print{display:none}
+  @media print{
+    @page{margin:12mm}
+    body{background:#fff!important;color:#000}
+    body>*:not(#print){display:none!important}
+    #print{display:block!important;color:#000;font:11.5px/1.35 Arial,sans-serif}
+    #print h1{font-size:17px;margin:0 0 2px}#print .sub{color:#444;margin-bottom:10px}
+    #print table{width:100%;border-collapse:collapse;font-size:11px}
+    #print th,#print td{border:1px solid #999;padding:4px 5px;color:#000;text-align:left}
+    #print th{background:#eee}#print td.n,#print th.n{text-align:right}
+    #print .blanco td{height:24px}
+    #print .firma{display:flex;gap:40px;margin-top:40px}#print .firma div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}
+    #print .etiquetas{grid-template-columns:repeat(3,1fr);gap:4mm}.etq{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div id="arranque" style="padding:40px 20px;text-align:center;color:#bfb0ec">Cargando inventario…</div>
+<script>
+  /* Si algo falla, se muestra en pantalla en lugar de quedarse en blanco */
+  window.onerror = function (msg, src, line) {
+    var a = document.getElementById('arranque');
+    if (a) { a.style.display = 'block'; a.style.color = '#ff9db3';
+      a.innerHTML = '⚠️ Error al cargar la app:<br><b>' + String(msg).replace(/</g, '&lt;') + '</b><br>línea ' + line +
+        '<br><br>Revisa que Index.html esté pegado completo (debe terminar en &lt;/html&gt;).'; }
+  };
+</script>
+
+<!-- ================= LOGIN ================= -->
+<div id="vLogin" class="oculto">
+  <main>
+    <div class="login">
+      <div class="logo"><svg viewBox="0 0 40 40"><path d="M28 9c-6 1-14 .5-15.5 4.5S20 18 24 20s4.5 5.5-1.5 6.5S12 28 12 32" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/></svg></div>
+      <div style="text-align:center;margin-bottom:18px"><div class="ayuda" style="margin:0">Grupo</div><div style="font-size:26px;font-weight:700;letter-spacing:3px">SURFACE</div><div style="color:var(--tq);font-size:13px">Inventario de almacenes · v2.3</div></div>
+      <div id="loginNombres" class="card"><h3>¿Quién eres?</h3><div id="listaNombres" class="nombres"><div class="ayuda">Cargando…</div></div></div>
+      <div id="loginPin" class="card oculto">
+        <h3 id="loginHola"></h3>
+        <label for="pin">Tu PIN</label>
+        <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+        <div id="pinError" class="ayuda" style="color:var(--bad)"></div>
+        <button class="btn pri big" onclick="entrar()">Entrar</button>
+        <button class="btn big" onclick="volverNombres()">← Elegir otro nombre</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="vApp" class="oculto">
+<header>
+  <div class="marca">
+    <div class="logo"><svg viewBox="0 0 40 40"><path d="M28 9c-6 1-14 .5-15.5 4.5S20 18 24 20s4.5 5.5-1.5 6.5S12 28 12 32" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/></svg></div>
+    <div><div class="t1">Grupo</div><div class="t2">SURFACE</div></div>
+  </div>
+  <button id="chipSync" class="ok" onclick="abrirSync()" title="Sincronización">✓</button>
+  <button id="chipUsuario" onclick="menuUsuario()">—</button>
+</header>
+
+<main>
+  <!-- ===== INICIO ===== -->
+  <section id="vInicio" class="vista on">
+    <h2 id="saludo">Hola</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="kProd">–</div><div class="l">Productos</div></div>
+      <div class="kpi"><div class="v" id="kHoy">–</div><div class="l">Movimientos hoy</div></div>
+      <div class="kpi"><div class="v" id="kValor">–</div><div class="l">Valor en stock</div></div>
+    </div>
+    <div id="iniMant"></div>
+    <div id="iniRecordatorios"></div>
+    <div id="iniKardex"></div>
+    <div id="iniBajo"></div>
+    <div id="iniEstados"></div>
+    <div class="card"><h3>Últimos movimientos</h3><div id="iniUltimos"><div class="ayuda">Cargando…</div></div></div>
+  </section>
+
+  <!-- ===== REGISTRAR ===== -->
+  <section id="vRegistrar" class="vista">
+    <h2>Registrar</h2>
+    <div class="card">
+      <div class="tipos" id="tipos"></div>
+      <div class="ayuda" id="ayudaTipo"></div>
+    </div>
+
+    <div class="card">
+      <label for="codigo" style="margin-top:0">Producto</label>
+      <div class="fila">
+        <input id="codigo" placeholder="Escanea, escribe código o nombre" autocomplete="off">
+        <button class="btn cam" onclick="abrirEscaner('codigo')" aria-label="Escanear">📷</button>
+      </div>
+      <div id="sugerencias" class="sug oculto"></div>
+      <div id="prodCard" class="prod oculto"></div>
+      <button id="btnNuevoProd" class="btn tq" style="margin-top:10px;width:100%" onclick="abrirNuevoProducto('')">＋ Producto nuevo</button>
+    </div>
+
+    <div class="card">
+      <label id="lblUbic" for="ubic" style="margin-top:0">Ubicación</label>
+      <div class="fila">
+        <select id="ubic"></select>
+        <button class="btn cam" onclick="abrirEscaner('ubic')" aria-label="Escanear ubicación">📷</button>
+      </div>
+      <div id="chipsUbic" class="chips"></div>
+
+      <div id="bEstadoO"><label for="estO">¿De qué stock?</label><select id="estO"></select></div>
+      <div id="bDestino" class="oculto">
+        <label for="dest">Destino</label>
+        <div class="fila"><select id="dest"></select><button class="btn cam" onclick="abrirEscaner('dest')">📷</button></div>
+      </div>
+      <div id="bEstadoD"><label id="lblEstD" for="estD">Pasa a</label><select id="estD"></select></div>
+      <div id="bPendiente"><label for="pend">¿Devuelve un préstamo / en uso?</label><select id="pend"></select></div>
+
+      <label id="lblCant" for="cant">Cantidad</label>
+      <div id="bSigno" class="seg oculto"><button id="sMas" class="on" onclick="setSigno(1)">＋ Sumar</button><button id="sMenos" onclick="setSigno(-1)">－ Restar</button></div>
+      <div id="bPres" class="seg oculto"><button id="pUnd" class="on" onclick="setPres(false)">UND</button><button id="pPres" onclick="setPres(true)">CAJA</button></div>
+      <div class="cant">
+        <button class="btn" onclick="paso(-1)">−</button>
+        <input id="cant" type="number" inputmode="decimal" step="any" min="0" value="1">
+        <button class="btn" onclick="paso(1)">+</button>
+      </div>
+      <div id="equiv" class="ayuda"></div>
+
+      <div id="bPrecio">
+        <label for="precio">Precio (opcional)</label>
+        <div class="fila"><input id="precio" type="number" inputmode="decimal" step="any" placeholder="0.00">
+          <select id="precioPor" style="flex:0 0 42%"></select></div>
+      </div>
+      <div id="bProyecto">
+        <label id="lblPry" for="pry">Proyecto</label>
+        <div class="fila"><select id="pry"></select><button class="btn cam" onclick="abrirNuevoProyecto(true)" aria-label="Nuevo proyecto">＋</button></div>
+      </div>
+      <div id="bArea"><label id="lblArea" for="area">¿Para qué se usa?</label><select id="area"></select></div>
+      <div id="bResp"><label id="lblResp" for="resp">Responsable</label><input id="resp" placeholder="Nombre de la persona" autocomplete="off"></div>
+      <div id="bRecordar"><label for="recordar">Recordarme si no vuelve en…</label>
+        <select id="recordar"><option value="0">No recordar</option><option value="1">1 día</option><option value="3">3 días</option>
+          <option value="7" selected>7 días</option><option value="15">15 días</option><option value="30">30 días</option><option value="60">60 días</option></select></div>
+      <div id="bMotivo"><label for="motivo">Motivo de la baja *</label>
+        <select id="motivo"><option value="">— Elegir —</option><option>Merma / se malogró</option><option>Vendido</option><option>Desechado</option><option>Perdido / no encontrado</option><option>Donado</option></select></div>
+      <label id="lblNota" for="nota">Nota (opcional)</label>
+      <textarea id="nota" placeholder="Guía, factura, motivo, estado…"></textarea>
+
+      <button id="btnGuardar" class="btn pri big" onclick="guardar()">Registrar</button>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">En esta sesión</h3><small id="contSesion" class="ayuda" style="margin:0"></small></div>
+      <div id="sesion"><div class="ayuda">Aún nada.</div></div>
+    </div>
+  </section>
+
+  <!-- ===== CONSULTAR ===== -->
+  <section id="vConsultar" class="vista">
+    <h2>Consultar</h2>
+    <div class="card">
+      <div class="fila">
+        <input id="qCodigo" placeholder="Producto o ubicación" autocomplete="off">
+        <button class="btn cam" onclick="abrirEscaner('consulta')">📷</button>
+      </div>
+      <div id="qSug" class="sug oculto"></div>
+      <div class="acciones">
+        <button class="btn sm" onclick="verPendientes()">🤝 En uso / préstamos</button>
+        <button class="btn sm" onclick="verStockBajo()">⚠️ Stock bajo</button>
+        <button class="btn sm" onclick="verEstado('REVISION')">🔧 Revisión técnica</button>
+        <button class="btn sm" onclick="verEstado('VENTA')">🏷️ Para venta</button>
+        <button class="btn sm" onclick="verHistorial()">🕘 Historial</button>
+      </div>
+    </div>
+    <div id="qResultado"></div>
+  </section>
+
+  <!-- ===== PROYECTOS ===== -->
+  <section id="vProyectos" class="vista">
+    <h2>Proyectos</h2>
+    <button class="btn pri big" style="margin:0 0 12px" onclick="abrirNuevoProyecto(false)">＋ Nuevo proyecto</button>
+    <div id="pDetalle"></div>
+    <div class="card"><div class="seg" id="pFiltro"><button class="on" data-f="Activo">Activos</button><button data-f="Cerrado">Cerrados</button><button data-f="">Todos</button></div>
+      <div id="pLista"><div class="ayuda">Cargando…</div></div></div>
+  </section>
+
+  <!-- ===== MÁQUINAS ===== -->
+  <section id="vMaquinas" class="vista">
+    <h2>Máquinas</h2>
+    <div class="fila" style="margin-bottom:12px">
+      <button class="btn pri" onclick="abrirMaquina()">＋ Nueva máquina</button>
+      <button class="btn peligro" onclick="abrirOrden('CORRECTIVO')">⚠️ Reportar avería</button>
+    </div>
+    <div id="mDetalle"></div>
+    <div id="mAlertas"></div>
+    <div id="mAbiertas"></div>
+    <div class="card"><h3>Equipos de producción</h3><div id="mLista"><div class="ayuda">Cargando…</div></div>
+      <div class="acciones"><button class="btn sm" onclick="abrirOrden('PREVENTIVO')">🛠️ Iniciar mantenimiento</button>
+        <button class="btn sm" onclick="imprimirPrograma()">🖨️ Imprimir programa</button></div></div>
+  </section>
+
+  <!-- ===== REPORTES ===== -->
+  <section id="vReportes" class="vista">
+    <h2>Reportes</h2>
+    <div class="card">
+      <h3>📒 Kardex de un producto</h3>
+      <div class="fila"><input id="kCodigo" placeholder="Producto" autocomplete="off"><button class="btn cam" onclick="abrirEscaner('kardex')">📷</button></div>
+      <div id="kSug" class="sug oculto"></div>
+      <div class="fila">
+        <div><label for="kDesde">Desde</label><input id="kDesde" type="date"></div>
+        <div><label for="kHasta">Hasta</label><input id="kHasta" type="date"></div>
+      </div>
+      <div class="acciones"><button class="btn sm" onclick="rangoK(0)">Hoy</button><button class="btn sm" onclick="rangoK(7)">7 días</button><button class="btn sm" onclick="rangoK('mes')">Este mes</button><button class="btn sm" onclick="rangoK(90)">90 días</button></div>
+      <button class="btn pri big" onclick="generarKardex()">Ver kardex</button>
+    </div>
+    <div id="kResultado"></div>
+    <div class="card">
+      <h3>🏢 Consumo por área</h3>
+      <div class="ayuda" style="margin-top:0">Cuánto material gastó cada área (oficina, área gráfica, taller, mantenimiento…) y cuánto los proyectos.</div>
+      <div class="fila">
+        <div><label for="cDesde">Desde</label><input id="cDesde" type="date"></div>
+        <div><label for="cHasta">Hasta</label><input id="cHasta" type="date"></div>
+      </div>
+      <button class="btn pri big" onclick="generarConsumoArea()">Ver consumo por área</button>
+    </div>
+    <div id="cResultado"></div>
+    <div class="card">
+      <h3>📋 Hoja de control (productos con seguimiento)</h3>
+      <div class="ayuda" style="margin-top:0">Lista para imprimir y contar en físico: productos marcados con kardex Diario o Semanal.</div>
+      <div class="acciones"><button class="btn sm" onclick="hojaControl('DIARIO')">Diarios</button><button class="btn sm" onclick="hojaControl('SEMANAL')">Semanales</button><button class="btn sm" onclick="hojaControl('')">Todos</button></div>
+    </div>
+    <div class="card">
+      <h3>🏷️ Etiquetas</h3>
+      <select id="eTipo"><option value="ubic">Ubicaciones (anaqueles y zonas)</option><option value="prod">Productos</option></select>
+      <label for="eFiltro">Filtrar (opcional)</label>
+      <input id="eFiltro" placeholder="Ej. A3 o HER">
+      <button class="btn pri big" onclick="generarEtiquetas()">Generar e imprimir</button>
+      <div class="ayuda">Imprime desde una computadora. Prueba que el celular lea una etiqueta antes de imprimir todas.</div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="on" data-v="vInicio" onclick="ir(this)"><b>🏠</b>Inicio</button>
+  <button data-v="vRegistrar" onclick="ir(this)"><b>➕</b>Registrar</button>
+  <button data-v="vConsultar" onclick="ir(this)"><b>🔎</b>Consultar</button>
+  <button data-v="vProyectos" onclick="ir(this)"><b>📁</b>Proyectos</button>
+  <button data-v="vMaquinas" onclick="ir(this)"><b>🛠️</b>Máquinas</button>
+  <button data-v="vReportes" onclick="ir(this)"><b>📊</b>Reportes</button>
+</nav>
+</div>
+
+<div id="toast"></div>
+<div id="print"></div>
+
+<!-- Escáner -->
+<div id="mScan" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 style="margin:0">Escanear código</h3><button class="btn sm" onclick="cerrarEscaner()">Cerrar</button></div>
+  <div id="lector"></div>
+  <div id="scanEstado" class="ayuda"></div>
+  <label class="btn pri big" style="display:block;text-align:center;color:#fff">📸 Tomar foto del código
+    <input id="fotoCodigo" type="file" accept="image/*" capture="environment" class="oculto"></label>
+  <div class="ayuda">Si la cámara en vivo no abre, toma una foto de cerca, con buena luz y el código derecho.</div>
+  <div id="lectorArchivo" class="oculto"></div>
+</div></div>
+
+<!-- Producto nuevo / editar -->
+<div id="mProd" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="mpTitulo" style="margin:0">Producto nuevo</h3><button class="btn sm" onclick="cerrarModal('mProd')">Cerrar</button></div>
+  <div id="mpCodigo" class="ayuda"></div>
+  <label for="npDesc">Descripción *</label><input id="npDesc" placeholder="Ej. Clavo de acero 2 1/2&quot;">
+  <div class="fila">
+    <div><label for="npFam">Familia *</label><select id="npFam"></select></div>
+    <div><label for="npClase">Clase / tipo</label><input id="npClase" placeholder="Ej. Clavo"></div>
+  </div>
+  <label for="npMarca">Marca</label><input id="npMarca" placeholder="Opcional">
+  <div class="fila">
+    <div><label for="npUnidad">Se cuenta en *</label><select id="npUnidad"></select></div>
+    <div><label for="npPres">Viene en (opcional)</label><select id="npPres"></select></div>
+  </div>
+  <div id="npFacBox" class="oculto"><label id="npFacLbl" for="npFac">¿Cuántas trae cada una?</label><input id="npFac" type="number" inputmode="decimal" placeholder="Ej. 40"></div>
+  <div class="fila">
+    <div><label for="npUbic">Ubicación habitual</label><select id="npUbic"></select></div>
+    <div><label for="npMin">Stock mínimo</label><input id="npMin" type="number" inputmode="decimal" placeholder="0"></div>
+  </div>
+  <label for="npKdx">Seguimiento kardex</label>
+  <select id="npKdx"><option value="NO">No</option><option value="DIARIO">Diario (alta rotación)</option><option value="SEMANAL">Semanal</option></select>
+  <label for="npBar">Código de barras de fábrica</label>
+  <div class="fila"><input id="npBar" placeholder="Opcional"><button class="btn cam" onclick="abrirEscaner('npBar')">📷</button></div>
+  <label for="npNotas">Notas</label><input id="npNotas" placeholder="Opcional">
+  <div id="npActivoBox" class="oculto"><label><input id="npActivo" type="checkbox" style="width:auto;margin-right:8px">Producto activo</label></div>
+  <button id="npGuardar" class="btn pri big" onclick="guardarProducto()">Crear producto</button>
+</div></div>
+
+<!-- Proyecto nuevo -->
+<div id="mPry" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 style="margin:0">Nuevo proyecto</h3><button class="btn sm" onclick="cerrarModal('mPry')">Cerrar</button></div>
+  <label for="prNombre">Nombre *</label><input id="prNombre" placeholder="Ej. Stand feria Lima">
+  <label for="prCliente">Cliente</label><input id="prCliente">
+  <label for="prResp">Responsable</label><input id="prResp">
+  <div class="fila"><div><label for="prIni">Inicio</label><input id="prIni" type="date"></div><div><label for="prFin">Fin (estimado)</label><input id="prFin" type="date"></div></div>
+  <label for="prNotas">Notas</label><input id="prNotas">
+  <button class="btn pri big" onclick="guardarProyecto()">Crear proyecto</button>
+</div></div>
+
+<!-- Máquina nueva / editar -->
+<div id="mMaq" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="mqTitulo" style="margin:0">Nueva máquina</h3><button class="btn sm" onclick="cerrarModal('mMaq')">Cerrar</button></div>
+  <label for="mqNombre">Nombre *</label><input id="mqNombre" placeholder="Ej. Impresora ecosolvente 1.60 m">
+  <div class="fila">
+    <div><label for="mqTipo">Tipo</label><input id="mqTipo" list="tiposMaq" placeholder="Ej. Impresora"></div>
+    <div><label for="mqUbic">Ubicación</label><select id="mqUbic"></select></div>
+  </div>
+  <datalist id="tiposMaq"><option>Impresora</option><option>Láser / grabadora</option><option>Router CNC</option><option>Cortadora</option>
+    <option>Plotter de corte</option><option>Laminadora</option><option>Dobladora / termoformado</option><option>Compresora</option>
+    <option>Soldadora</option><option>Sierra / mesa de corte</option><option>Vehículo</option><option>Otro</option></datalist>
+  <div class="fila">
+    <div><label for="mqMarca">Marca</label><input id="mqMarca"></div>
+    <div><label for="mqModelo">Modelo</label><input id="mqModelo"></div>
+  </div>
+  <div class="fila">
+    <div><label for="mqSerie">N° de serie</label><input id="mqSerie"></div>
+    <div><label for="mqCompra">Fecha de compra</label><input id="mqCompra" type="date"></div>
+  </div>
+  <label for="mqProv">Proveedor / técnico de confianza</label><input id="mqProv" placeholder="Nombre y teléfono">
+  <div id="mqEstadoBox" class="oculto"><label for="mqEstado">Estado</label>
+    <select id="mqEstado"><option value="OPERATIVA">🟢 Operativa</option><option value="MANTENIMIENTO">🟡 En mantenimiento</option>
+      <option value="AVERIADA">🔴 Averiada</option><option value="BAJA">⚫ De baja</option></select></div>
+  <label for="mqNotas">Notas</label><input id="mqNotas">
+  <button id="mqGuardar" class="btn pri big" onclick="guardarMaquina()">Crear máquina</button>
+</div></div>
+
+<!-- Plan preventivo -->
+<div id="mPlan" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="plTitulo" style="margin:0">Plan de mantenimiento</h3><button class="btn sm" onclick="cerrarModal('mPlan')">Cerrar</button></div>
+  <div id="plMaq" class="meta"></div>
+  <label for="plTarea">Tarea *</label><input id="plTarea" placeholder="Ej. Limpieza de cabezales">
+  <label for="plCada">Se hace cada… *</label>
+  <div class="fila"><input id="plCada" type="number" inputmode="numeric" min="1" placeholder="15">
+    <select id="plUnidad"><option value="1">días</option><option value="7">semanas</option><option value="30">meses</option></select></div>
+  <label for="plAvisar">Avisarme con anticipación (días)</label><input id="plAvisar" type="number" inputmode="numeric" min="0" placeholder="7">
+  <div id="plUltBox"><label for="plUlt">¿Cuándo se hizo por última vez? (opcional)</label><input id="plUlt" type="date">
+    <div class="ayuda">Si lo dejas vacío, el primero se programa contando desde hoy.</div></div>
+  <div id="plProxBox" class="oculto"><label for="plProx">Cambiar próxima fecha (opcional)</label><input id="plProx" type="date"></div>
+  <div id="plActBox" class="oculto"><label><input id="plAct" type="checkbox" style="width:auto;margin-right:8px">Plan activo</label></div>
+  <button id="plGuardar" class="btn pri big" onclick="guardarPlan()">Crear plan</button>
+</div></div>
+
+<!-- Abrir orden -->
+<div id="mOT" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="otTitulo" style="margin:0">Orden de mantenimiento</h3><button class="btn sm" onclick="cerrarModal('mOT')">Cerrar</button></div>
+  <div class="seg" style="margin-top:6px"><button id="otPrev" onclick="setTipoOT('PREVENTIVO')">🛠️ Preventivo</button><button id="otCorr" onclick="setTipoOT('CORRECTIVO')">⚠️ Avería / correctivo</button></div>
+  <label for="otMaq">Máquina *</label><select id="otMaq"></select>
+  <div id="otPlanBox"><label for="otPlan">¿Qué mantenimiento programado?</label><select id="otPlan"></select></div>
+  <label id="otFallaLbl" for="otFalla">Motivo / detalle</label><textarea id="otFalla" placeholder="¿Qué pasa o qué se va a hacer?"></textarea>
+  <div class="fila">
+    <div><label for="otResp">Quién lo hace</label><input id="otResp" placeholder="Técnico o empresa"></div>
+    <div><label for="otIni">Inicio</label><input id="otIni" type="date"></div>
+  </div>
+  <label><input id="otExt" type="checkbox" style="width:auto;margin-right:8px">Lo hace un proveedor externo</label>
+  <button class="btn pri big" onclick="guardarOrden()">Abrir orden</button>
+</div></div>
+
+<!-- Cerrar orden -->
+<div id="mCerrar" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="ciTitulo" style="margin:0">Cerrar orden</h3><button class="btn sm" onclick="cerrarModal('mCerrar')">Cerrar</button></div>
+  <div id="ciInfo" class="meta"></div>
+  <label for="ciTrabajo">Trabajo realizado *</label><textarea id="ciTrabajo" placeholder="Qué se hizo, piezas cambiadas, observaciones"></textarea>
+  <div class="fila">
+    <div><label for="ciCosto">Costo del servicio</label><input id="ciCosto" type="number" inputmode="decimal" step="any" placeholder="0.00"></div>
+    <div><label for="ciFin">Fecha de fin</label><input id="ciFin" type="date"></div>
+  </div>
+  <label for="ciEstado">¿Cómo queda la máquina?</label>
+  <select id="ciEstado"><option value="OPERATIVA">🟢 Operativa</option><option value="AVERIADA">🔴 Sigue averiada</option><option value="BAJA">⚫ De baja (no tiene arreglo)</option></select>
+  <button class="btn pri big" onclick="guardarCierre()">Cerrar orden</button>
+</div></div>
+
+<!-- Repuesto para una orden -->
+<div id="mRep" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 style="margin:0">Repuesto / insumo usado</h3><button class="btn sm" onclick="cerrarModal('mRep')">Cerrar</button></div>
+  <div id="rpInfo" class="meta"></div>
+  <label for="rpProd">Producto del almacén</label>
+  <div class="fila"><input id="rpProd" placeholder="Escribe o escanea" autocomplete="off"><button class="btn cam" onclick="abrirEscaner('rpProd')">📷</button></div>
+  <div id="rpSug" class="sug oculto"></div>
+  <div id="rpCard" class="prod oculto"></div>
+  <label for="rpUbic">¿De dónde sale?</label><select id="rpUbic"></select>
+  <label for="rpCant">Cantidad</label><input id="rpCant" type="number" inputmode="decimal" step="any" value="1">
+  <button class="btn pri big" onclick="guardarRepuesto()">Registrar salida</button>
+  <div class="ayuda">Se descuenta del stock y se suma al costo de la orden.</div>
+</div></div>
+
+<!-- Sincronización (v2.4) -->
+<div id="mSync" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 style="margin:0">☁️ Sincronización</h3><button class="btn sm" onclick="cerrarModal('mSync')">Cerrar</button></div>
+  <div id="syEstado" class="ayuda" style="margin-bottom:8px"></div>
+  <button class="btn pri big" style="margin-top:4px" onclick="sincronizarCola(true)">Subir ahora y actualizar datos</button>
+  <div class="ayuda" style="margin-top:10px">Los movimientos se guardan primero en este celular y se suben solos a la hoja cuando hay conexión.</div>
+  <div id="syLista" style="margin-top:10px"></div>
+</div></div>
+
+<!-- Menú usuario -->
+<div id="mUser" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="muNombre" style="margin:0"></h3><button class="btn sm" onclick="cerrarModal('mUser')">Cerrar</button></div>
+  <button class="btn big" onclick="recargarDatos()">🔄 Recargar datos</button>
+  <button class="btn peligro big" onclick="salir()">Cerrar sesión</button>
+</div></div>
+
+<script src="offline.js"></script>
+<script>
+/* ================= Configuración de tipos ================= */
+const BARRA = String.fromCharCode(47);
+const WEB = 'https:' + BARRA + BARRA;
+const TIPOS = {
+  ENTRADA:   {t:'Entrada',    i:'⬇️', ub:'¿Dónde se guarda?', ayuda:'Compra o material que llega.', pres:1, precio:1, resp:'opt', respL:'Proveedor / quién entrega'},
+  SALIDA:    {t:'Salida / uso', i:'⬆️', ub:'¿De dónde sale?', ayuda:'Material que se gasta. Si sobra, luego registra una Devolución.', pres:1, pry:1, area:1, resp:'opt', respL:'Quién lo retira'},
+  TRASLADO:  {t:'Traslado',   i:'🔁', ub:'Origen', ayuda:'Se muda a otro lugar para quedarse guardado ahí.', dest:1, estO:1, pres:1, resp:'opt', respL:'Quién lo lleva'},
+  PRESTAMO:  {t:'En uso',     i:'🤝', ub:'¿De dónde sale?', ayuda:'Sale y debe volver: herramienta prestada, mobiliario en evento.', pres:1, pry:1, resp:'req', respL:'Quién se lo lleva', rec:1},
+  DEVOLUCION:{t:'Devolución', i:'↩️', ub:'¿Dónde se guarda?', ayuda:'Vuelve algo en uso o sobrante de un proyecto.', pres:1, pry:1, resp:'opt', respL:'Quién devuelve', pend:1, estD:'¿En qué estado vuelve?'},
+  CAMBIO:    {t:'Cambiar estado', i:'🔧', ub:'Ubicación', ayuda:'Pasar a revisión técnica, a venta, o volver a disponible.', estO:1, estD:'Pasa a'},
+  BAJA:      {t:'Baja',       i:'🗑️', ub:'¿De dónde sale?', ayuda:'Sale definitivamente: merma, venta, desecho, pérdida.', estO:1, motivo:1, nota:'req'},
+  AJUSTE:    {t:'Ajuste ±',   i:'✏️', ub:'Ubicación', ayuda:'Corregir a mano. Explica el motivo.', estO:1, signo:1, nota:'req'},
+  CONTEO:    {t:'Conteo',     i:'📋', ub:'¿Dónde cuentas?', ayuda:'Escribe lo que hay físicamente. El sistema calcula la diferencia.', estO:1, cant:'Cantidad contada'}
+};
+const EST = {DISPONIBLE:'Disponible', REVISION:'Revisión técnica', VENTA:'Para venta / desuso'};
+const S = {u:'', pin:'', productos:[], porCodigo:{}, ubicaciones:[], familias:[], proyectos:[], areas:[], unidades:[], cfg:{},
+           tipo:'ENTRADA', prod:null, det:null, signo:1, enPres:false, cuenta:0, scanDestino:null, cam:null, ocupado:false,
+           editando:null, pryFiltro:'Activo', pryVolverRegistrar:false, ultimoKardex:null};
+
+/* ================= Utilidades ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ACENTOS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
+const norm = s => String(s || '').normalize('NFD').replace(ACENTOS, '').toLowerCase();
+const fmtN = n => (Math.round((+n || 0) * 1000) / 1000).toLocaleString('es-PE');
+const money = n => (S.cfg.moneda || 'S/') + ' ' + (+n || 0).toLocaleString('es-PE', {minimumFractionDigits:2, maximumFractionDigits:2});
+const hoyISO = (d) => { d = d || new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+function guardarLocal(k, v){ try{ localStorage.setItem('inv2_' + k, v); }catch(e){} }
+function leerLocal(k){ try{ return localStorage.getItem('inv2_' + k) || ''; }catch(e){ return ''; } }
+function borrarLocal(k){ try{ localStorage.removeItem('inv2_' + k); }catch(e){} }
+
+/* llamar() y api() están en offline.js (v2.4) */
+let tToast;
+function toast(msg, err){
+  const t = $('toast'); t.innerHTML = msg; t.className = 'on' + (err ? ' err' : '');
+  clearTimeout(tToast); tToast = setTimeout(() => t.className = '', err ? 6000 : 3500);
+}
+function vibrar(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
+function cargarScript(urls){
+  return new Promise((ok, mal) => {
+    let i = 0;
+    const sig = () => {
+      if (i >= urls.length) return mal(new Error('No se pudo cargar la librería. Revisa la conexión.'));
+      const s = document.createElement('script'); s.src = urls[i++]; s.onload = ok; s.onerror = sig; document.head.appendChild(s);
+    };
+    sig();
+  });
+}
+function opciones(lista, val, txt, vacio){
+  return (vacio != null ? `<option value="">${esc(vacio)}</option>` : '') + lista.map(x => `<option value="${esc(val(x))}">${esc(txt(x))}</option>`).join('');
+}
+function cerrarModal(id){ $(id).classList.add('oculto'); }
+function abrirModal(id){ $(id).classList.remove('oculto'); }
+
+/* ================= Sesión ================= */
+async function arrancar(){
+  iniciarCapaOffline();
+  S.u = leerLocal('u'); S.pin = leerLocal('pin');
+  if (S.u && S.pin){
+    if (OFF.snap){
+      recalcLocal(); cargarDatos(Object.assign({}, OFF.snap, {usuario: S.u})); pintarChipSync();
+      refrescarSnap(false).then(() => programarSync(300));
+      return;
+    }
+    try { const r = await offEntrar(S.u, S.pin); cargarDatos(r); pintarChipSync(); programarSync(300); return; }
+    catch(e){ if (!e.red) borrarLocal('pin'); }
+  }
+  mostrarLogin();
+}
+async function mostrarLogin(){
+  $('arranque').style.display = 'none';
+  $('vApp').classList.add('oculto'); $('vLogin').classList.remove('oculto');
+  $('loginPin').classList.add('oculto'); $('loginNombres').classList.remove('oculto');
+  try {
+    const nombres = await offNombres();
+    $('listaNombres').innerHTML = nombres.map(n => `<button class="btn" data-n="${esc(n)}" onclick="elegirNombre(this.dataset.n)">👤 ${esc(n)}</button>`).join('')
+      || '<div class="ayuda">No hay usuarios activos en la hoja USUARIOS.</div>';
+  } catch(e){ $('listaNombres').innerHTML = `<div class="aviso error">${esc(e.message)}</div>`; }
+}
+function elegirNombre(n){
+  S.u = n; $('loginHola').textContent = 'Hola, ' + n;
+  $('loginNombres').classList.add('oculto'); $('loginPin').classList.remove('oculto');
+  $('pin').value = ''; $('pinError').textContent = ''; setTimeout(() => $('pin').focus(), 50);
+}
+function volverNombres(){ $('loginPin').classList.add('oculto'); $('loginNombres').classList.remove('oculto'); }
+async function entrar(){
+  S.pin = $('pin').value.trim();
+  $('pinError').textContent = '';
+  try {
+    const r = await offEntrar(S.u, S.pin);
+    guardarLocal('u', r.usuario); guardarLocal('pin', S.pin);
+    cargarDatos(r); pintarChipSync(); programarSync(300);
+  } catch(e){ $('pinError').textContent = e.message.replace(/^.*SESION:\s*/, ''); }
+}
+function salir(){
+  const n = OFF.cola.filter(o => o.u === S.u && o.est === 'pendiente').length;
+  if (n) toast(`⏳ Quedan ${n} movimiento(s) por subir. Se subirán cuando vuelvas a entrar con conexión.`, true);
+  borrarLocal('pin'); S.pin = ''; cerrarModal('mUser'); mostrarLogin();
+}
+function menuUsuario(){ $('muNombre').textContent = '👤 ' + S.u; abrirModal('mUser'); }
+async function recargarDatos(){
+  cerrarModal('mUser');
+  try { cargarDatos(await api('iniciar')); toast('Datos actualizados.'); } catch(e){ toast(esc(e.message), true); }
+}
+
+function cargarDatos(r){
+  S.u = r.usuario; S.productos = r.productos; S.ubicaciones = r.ubicaciones; S.familias = r.familias;
+  S.proyectos = r.proyectos; S.areas = r.areas; S.unidades = r.unidades; S.cfg = r.cfg;
+  indexar();
+  $('arranque').style.display = 'none';
+  $('vLogin').classList.add('oculto'); $('vApp').classList.remove('oculto');
+  $('chipUsuario').textContent = '👤 ' + S.u;
+  $('saludo').textContent = 'Hola, ' + S.u;
+  const ubOpts = opciones(S.ubicaciones, u => u.c, u => `${u.c} · ${u.d}`);
+  $('ubic').innerHTML = '<option value="">— Elegir —</option>' + ubOpts;
+  $('dest').innerHTML = '<option value="">— Elegir —</option>' + ubOpts;
+  $('npUbic').innerHTML = '<option value="">— Ninguna —</option>' + ubOpts;
+  $('mqUbic').innerHTML = '<option value="">— Elegir —</option>' + ubOpts;
+  const estOpts = opciones(Object.keys(EST), k => k, k => EST[k]);
+  $('estO').innerHTML = estOpts; $('estD').innerHTML = estOpts;
+  pintarProyectosSelect();
+  $('area').innerHTML = '<option value="">— Elegir —</option>' + opciones(S.areas, a => a, a => a);
+  $('npFam').innerHTML = '<option value="">— Elegir —</option>' + opciones(S.familias, f => f.p, f => `${f.f} (${f.p})`);
+  $('npUnidad').innerHTML = opciones(S.unidades, u => u, u => u);
+  $('npPres').innerHTML = '<option value="">— Igual (no aplica) —</option>' + opciones(S.unidades, u => u, u => u);
+  const u = leerLocal('ubic'); if (u && S.ubicaciones.some(x => x.c === u)) $('ubic').value = u;
+  pintarTipos(); setTipo(leerLocal('tipo') || 'ENTRADA');
+  rangoK('mes'); rangoC();
+  cargarInicio();
+}
+function pintarProyectosSelect(){
+  const v = $('pry').value;
+  $('pry').innerHTML = '<option value="">— Sin proyecto —</option>' + opciones(S.proyectos, p => p.c, p => `${p.c} · ${p.n}`);
+  if (v) $('pry').value = v;
+}
+function indexar(){
+  S.porCodigo = {};
+  S.productos.forEach(p => {
+    p._n = norm([p.d, p.c, p.fam, p.cla, p.mar, p.bar].join(' '));
+    S.porCodigo[p.c.toUpperCase()] = p;
+    if (p.bar) S.porCodigo[p.bar.toUpperCase()] = p;
+  });
+}
+
+/* ================= Navegación ================= */
+function ir(b){
+  if (typeof b === 'string') b = document.querySelector(`nav button[data-v="${b}"]`);
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === b.dataset.v));
+  if (b.dataset.v === 'vInicio') cargarInicio();
+  if (b.dataset.v === 'vProyectos') cargarProyectos();
+  if (b.dataset.v === 'vMaquinas') cargarMaquinas();
+  window.scrollTo(0, 0);
+}
+
+/* ================= Inicio ================= */
+async function cargarInicio(){
+  try {
+    const r = await api('resumenInicio');
+    $('kProd').textContent = r.productos; $('kHoy').textContent = r.movHoy;
+    $('kValor').textContent = (S.cfg.moneda || 'S/') + ' ' + (r.valor >= 1000 ? (r.valor / 1000).toFixed(1) + 'k' : Math.round(r.valor));
+    $('iniRecordatorios').innerHTML = (r.vencidos.length ? `<div class="card" style="border-color:var(--warn)"><h3>⏰ Recordatorios (${r.vencidos.length})</h3>${r.vencidos.map(htmlPendiente).join('')}</div>` : '') +
+      (r.abiertos ? `<button class="btn sm" style="margin:-4px 0 12px" onclick="ir('vConsultar');verPendientes()">🤝 ${r.abiertos} en uso / prestados · ver todos</button>` : '');
+    $('iniKardex').innerHTML = r.kardexHoy.length ? `<div class="card"><h3>📋 Toca contar (${r.kardexHoy.length})</h3>${r.kardexHoy.slice(0, 8).map(k =>
+      `<div class="item"><div class="top"><span>${esc(k.c)} · ${k.kdx === 'DIARIO' ? 'Diario' : 'Semanal'}</span><span>${k.ultimo ? 'Último: ' + esc(k.ultimo) : 'Nunca contado'}</span></div>
+       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(k.d)}</b><button class="btn sm" data-c="${esc(k.c)}" onclick="irContar(this.dataset.c)">Contar</button></div></div>`).join('')}</div>` : '';
+    $('iniBajo').innerHTML = r.bajo.length ? `<div class="card"><h3>⚠️ Stock bajo (${r.bajo.length})</h3>${r.bajo.slice(0, 6).map(x =>
+      `<div class="item"><div style="display:flex;justify-content:space-between;gap:8px"><span>${esc(x.d)}<br><small class="meta">${esc(x.c)}</small></span><span class="n" style="color:var(--bad);font-weight:600;white-space:nowrap">${fmtN(x.total)} / ${fmtN(x.min)} ${esc(x.u)}</span></div></div>`).join('')}</div>` : '';
+    $('iniEstados').innerHTML = (r.estados.REVISION || r.estados.VENTA) ? `<div class="acciones" style="margin:-2px 0 12px">
+      ${r.estados.REVISION ? `<button class="btn sm" onclick="ir('vConsultar');verEstado('REVISION')">🔧 ${r.estados.REVISION} en revisión técnica</button>` : ''}
+      ${r.estados.VENTA ? `<button class="btn sm" onclick="ir('vConsultar');verEstado('VENTA')">🏷️ ${r.estados.VENTA} para venta</button>` : ''}</div>` : '';
+    const mt = r.mant || {planes: [], averiadas: []};
+    const venc = mt.planes.filter(x => x.st === 'VENCIDO');
+    $('iniMant').innerHTML = (mt.planes.length || mt.averiadas.length) ? `<div class="card ${venc.length || mt.averiadas.length ? 'alerta-roja' : 'alerta-ambar'}">
+      <h3>🛠️ Mantenimiento</h3>
+      ${mt.averiadas.map(m => `<div class="item"><span class="badge AVERIADA">🔴 Averiada</span> <b>${esc(m.n)}</b> <span class="meta">${esc(m.c)}</span></div>`).join('')}
+      ${mt.planes.slice(0, 6).map(htmlAlertaPlan).join('')}
+      <button class="btn sm" style="margin-top:8px" onclick="ir('vMaquinas')">Ver máquinas</button></div>` : '';
+    $('iniUltimos').innerHTML = r.ultimos.length ? r.ultimos.map(m => htmlMov(m, false)).join('') : '<div class="ayuda">Aún no hay movimientos.</div>';
+  } catch(e){ $('iniUltimos').innerHTML = `<div class="aviso error">${esc(e.message)}</div>`; }
+}
+function irContar(c){
+  ir('vRegistrar'); setTipo('CONTEO');
+  const p = S.porCodigo[c.toUpperCase()]; if (p) elegirProducto(p);
+}
+
+/* ================= Registrar ================= */
+function pintarTipos(){
+  $('tipos').innerHTML = Object.keys(TIPOS).map(k => `<button class="tipo" data-k="${k}" onclick="setTipo('${k}')"><b>${TIPOS[k].i}</b>${TIPOS[k].t}</button>`).join('');
+}
+function vis(id, on){ $(id).classList.toggle('oculto', !on); }
+function setTipo(k){
+  if (!TIPOS[k]) k = 'ENTRADA';
+  S.tipo = k; guardarLocal('tipo', k);
+  const T = TIPOS[k];
+  document.querySelectorAll('.tipo').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  $('ayudaTipo').textContent = T.ayuda; $('lblUbic').textContent = T.ub;
+  vis('bDestino', T.dest); vis('bEstadoO', T.estO); vis('bEstadoD', T.estD); if (T.estD) $('lblEstD').textContent = T.estD;
+  vis('bSigno', T.signo); vis('bPrecio', T.precio); vis('bProyecto', T.pry); vis('bArea', T.area);
+  vis('bResp', T.resp); vis('bRecordar', T.rec); vis('bMotivo', T.motivo); vis('bPendiente', T.pend);
+  $('lblPry').textContent = (k === 'SALIDA' && S.cfg.proyectoObligatorio) ? 'Proyecto *' : 'Proyecto';
+  $('lblArea').textContent = k === 'SALIDA' ? (S.cfg.proyectoObligatorio ? '¿Para qué se usa?' : '¿Para qué se usa? (si no es de un proyecto)') : 'Área';
+  if (T.resp) $('lblResp').textContent = T.respL + (T.resp === 'req' ? ' *' : ' (opcional)');
+  $('lblNota').textContent = T.nota === 'req' ? 'Motivo / detalle *' : 'Nota (opcional)';
+  $('lblCant').textContent = T.cant || 'Cantidad';
+  $('btnGuardar').textContent = 'Registrar ' + T.t.toLowerCase();
+  $('estO').value = 'DISPONIBLE';
+  $('estD').value = k === 'CAMBIO' ? 'REVISION' : 'DISPONIBLE';
+  $('recordar').value = String(S.cfg.diasRecordar || 7);
+  if ($('recordar').value === '') $('recordar').value = '7';
+  if (k === 'CONTEO') $('cant').value = ''; else if (!$('cant').value) $('cant').value = 1;
+  setSigno(1); actualizarProductoUI();
+}
+function setSigno(s){ S.signo = s; $('sMas').classList.toggle('on', s > 0); $('sMenos').classList.toggle('on', s < 0); }
+function setPres(b){ S.enPres = b; $('pUnd').classList.toggle('on', !b); $('pPres').classList.toggle('on', b); pintarEquiv(); }
+function paso(d){
+  const v = parseFloat(String($('cant').value).replace(',', '.')) || 0;
+  $('cant').value = Math.max(0, Math.round((v + d) * 1000) / 1000); pintarEquiv();
+}
+function pintarEquiv(){
+  const p = S.prod, el = $('equiv');
+  if (!p || !p.fac || !TIPOS[S.tipo].pres){ el.textContent = ''; return; }
+  const q = parseFloat(String($('cant').value).replace(',', '.')) || 0;
+  el.textContent = S.enPres ? `= ${fmtN(q * p.fac)} ${p.u}` : (q ? `≈ ${fmtN(q / p.fac)} ${p.pres} de ${fmtN(p.fac)}` : '');
+}
+
+/* ----- Producto ----- */
+function buscarLocal(txt){
+  const t = norm(txt).split(/\s+/).filter(Boolean);
+  if (!t.length) return [];
+  return S.productos.filter(p => t.every(w => p._n.indexOf(w) >= 0)).sort((a, b) => (a.act === false) - (b.act === false) || a.d.localeCompare(b.d)).slice(0, 60);
+}
+function pintarSugerencias(box, lista, onPick){
+  if (!lista.length){ box.classList.add('oculto'); return; }
+  box.innerHTML = lista.map((p, i) => `<div data-i="${i}">${esc(p.d)}<br><small>${esc(p.c)} · ${esc(p.u)}${p.act === false ? ' · inactivo' : ''}</small></div>`).join('');
+  box.classList.remove('oculto');
+  box.querySelectorAll('div').forEach(d => d.onclick = () => { box.classList.add('oculto'); onPick(lista[+d.dataset.i]); });
+}
+function esUbicacion(txt){ const up = String(txt).trim().toUpperCase(); return S.ubicaciones.find(u => u.c.toUpperCase() === up); }
+function manejarCodigo(txt){
+  txt = String(txt || '').trim(); if (!txt) return;
+  const ub = esUbicacion(txt);
+  if (ub){
+    const d = (S.tipo === 'TRASLADO' && $('ubic').value && $('ubic').value !== ub.c) ? 'dest' : 'ubic';
+    $(d).value = ub.c; if (d === 'ubic') guardarLocal('ubic', ub.c);
+    $('codigo').value = S.prod ? S.prod.c : ''; $('sugerencias').classList.add('oculto');
+    toast('📍 ' + (d === 'dest' ? 'Destino: ' : 'Ubicación: ') + esc(ub.c)); vibrar(40); actualizarProductoUI();
+    return;
+  }
+  const p = S.porCodigo[txt.toUpperCase()];
+  if (p){ elegirProducto(p); vibrar(40); return; }
+  const lista = buscarLocal(txt);
+  const pareceCodigo = /^\d{6,}$/.test(txt);
+  if (!pareceCodigo && lista.length === 1){ elegirProducto(lista[0]); return; }
+  if (!pareceCodigo && lista.length){ pintarSugerencias($('sugerencias'), lista, elegirProducto); return; }
+  abrirNuevoProducto(pareceCodigo || (/\d/.test(txt) && !/\s/.test(txt)) ? txt : '', pareceCodigo ? '' : txt);
+}
+function elegirProducto(p){
+  S.prod = p; S.det = null; S.enPres = false;
+  $('codigo').value = p.c; $('sugerencias').classList.add('oculto');
+  $('prodCard').classList.remove('oculto');
+  $('prodCard').innerHTML = `<strong>${esc(p.d)}</strong><div class="meta">${esc(p.c)} · ${esc(p.fam)}${p.cla ? ' · ' + esc(p.cla) : ''} · se cuenta en ${esc(p.u)}${p.pres ? ` · viene en ${esc(p.pres)} x ${fmtN(p.fac)}` : ''}</div><div id="prodStock" class="meta" style="color:#fff;margin-top:4px">Consultando stock…</div>`;
+  $('pPres').textContent = p.pres ? `${p.pres} x ${fmtN(p.fac)}` : '';
+  $('pUnd').textContent = p.u;
+  $('precioPor').innerHTML = `<option value="u">por ${esc(p.u)}</option>` + (p.pres ? `<option value="p">por ${esc(p.pres)}</option>` : '');
+  setPres(false);
+  /* Ubicación sugerida antes de consultar */
+  if (p.ubh && esUbicacion(p.ubh)) $('ubic').value = p.ubh;
+  actualizarProductoUI();
+  api('buscar', p.c).then(d => {
+    if (!S.prod || S.prod.c !== p.c) return;
+    S.det = d;
+    const el = $('prodStock');
+    if (el) el.innerHTML = `Disponible <b>${fmtN(d.tot.DISPONIBLE)}</b> ${esc(p.u)}` +
+      (d.tot.REVISION ? ` · Revisión <b>${fmtN(d.tot.REVISION)}</b>` : '') + (d.tot.VENTA ? ` · Para venta <b>${fmtN(d.tot.VENTA)}</b>` : '') +
+      (d.enUso ? ` · En uso <b>${fmtN(d.enUso)}</b>` : '') + (d.bajo ? ' <span class="badge SALIDA">Stock bajo</span>' : '');
+    autoUbicacion(); actualizarProductoUI();
+  }).catch(() => { const el = $('prodStock'); if (el) el.textContent = ''; });
+  if (S.tipo !== 'CONTEO') $('cant').select();
+}
+/** Elige sola la ubicación si el producto está en un único lugar */
+function autoUbicacion(){
+  if (!S.det) return;
+  const sale = ['SALIDA', 'PRESTAMO', 'TRASLADO', 'BAJA', 'CAMBIO'].indexOf(S.tipo) >= 0;
+  const e = TIPOS[S.tipo].estO ? $('estO').value : 'DISPONIBLE';
+  const lugares = S.det.stock.filter(s => s.e === e && s.q > 0);
+  if (sale && lugares.length === 1) $('ubic').value = lugares[0].u;
+  else if (!sale && S.prod.ubh && !$('ubic').value) $('ubic').value = S.prod.ubh;
+}
+function actualizarProductoUI(){
+  const p = S.prod, T = TIPOS[S.tipo];
+  vis('bPres', p && p.pres && p.fac && T.pres);
+  pintarEquiv();
+  /* Chips con lugares donde hay stock */
+  const ch = $('chipsUbic');
+  if (p && S.det){
+    const e = T.estO ? $('estO').value : (S.tipo === 'DEVOLUCION' || S.tipo === 'ENTRADA' ? null : 'DISPONIBLE');
+    const lugares = S.det.stock.filter(s => (!e || s.e === e) && s.q !== 0);
+    ch.innerHTML = S.tipo === 'CONTEO' ? '<span class="ayuda">El sistema no muestra cuánto debería haber, para que el conteo sea real.</span>'
+      : lugares.map(s => `<button class="chip ${s.u === $('ubic').value ? 'on' : ''}" data-u="${esc(s.u)}" onclick="$('ubic').value=this.dataset.u;actualizarProductoUI()">${esc(s.u)}${!e && s.e !== 'DISPONIBLE' ? ' · ' + esc(EST[s.e]) : ''}: ${fmtN(s.q)}</button>`).join('');
+  } else ch.innerHTML = '';
+  /* Préstamos pendientes para devolución */
+  if (T.pend){
+    const lista = p && S.det ? S.det.pendientes : [];
+    $('pend').innerHTML = '<option value="">No — es sobrante o material que vuelve</option>' +
+      lista.map(x => `<option value="${esc(x.id)}">${esc(x.resp || x.pry)} · faltan ${fmtN(x.falta)} · desde ${esc(x.f.slice(0, 10))}</option>`).join('');
+  }
+}
+function abrirNuevoProducto(codigo, desc){
+  S.editando = null;
+  $('mpTitulo').textContent = 'Producto nuevo'; $('npGuardar').textContent = 'Crear producto';
+  $('mpCodigo').textContent = 'El código se crea solo según la familia (ej. FER-0001).';
+  $('npDesc').value = desc || ''; $('npFam').value = ''; $('npClase').value = ''; $('npMarca').value = '';
+  $('npUnidad').value = 'UND'; $('npPres').value = ''; $('npFac').value = ''; vis('npFacBox', false);
+  $('npUbic').value = $('ubic').value || ''; $('npMin').value = ''; $('npKdx').value = 'NO';
+  $('npBar').value = codigo || ''; $('npNotas').value = ''; vis('npActivoBox', false);
+  abrirModal('mProd'); setTimeout(() => $('npDesc').focus(), 60);
+}
+function abrirEditarProducto(c){
+  const p = S.porCodigo[c.toUpperCase()]; if (!p) return;
+  S.editando = p.c;
+  $('mpTitulo').textContent = 'Editar ' + p.c; $('npGuardar').textContent = 'Guardar cambios';
+  $('mpCodigo').textContent = 'Las cantidades no se cambian aquí; para eso usa Ajuste o Conteo.';
+  $('npDesc').value = p.d; const f = S.familias.find(x => x.f === p.fam); $('npFam').value = f ? f.p : '';
+  $('npClase').value = p.cla; $('npMarca').value = p.mar; $('npUnidad').value = p.u; $('npPres').value = p.pres;
+  $('npFac').value = p.fac || ''; vis('npFacBox', !!p.pres); actualizarLblFac();
+  $('npUbic').value = p.ubh; $('npMin').value = p.min || ''; $('npKdx').value = p.kdx || 'NO';
+  $('npBar').value = p.bar; $('npNotas').value = p.notas || ''; $('npActivo').checked = p.act !== false; vis('npActivoBox', true);
+  abrirModal('mProd');
+}
+function actualizarLblFac(){ $('npFacLbl').textContent = `¿Cuántas ${$('npUnidad').value} trae cada ${$('npPres').value}?`; }
+async function guardarProducto(){
+  if (S.ocupado) return; S.ocupado = true;
+  const d = {descripcion: $('npDesc').value, familia: $('npFam').value, clase: $('npClase').value, marca: $('npMarca').value,
+    unidad: $('npUnidad').value, presentacion: $('npPres').value, factor: $('npFac').value, ubicHabitual: $('npUbic').value,
+    minimo: $('npMin').value, kardex: $('npKdx').value, codBarras: $('npBar').value, notas: $('npNotas').value, activo: $('npActivo').checked};
+  try {
+    const p = S.editando ? await api('editarProducto', S.editando, d) : await api('crearProducto', d);
+    const i = S.productos.findIndex(x => x.c === p.c);
+    if (i >= 0) S.productos[i] = p; else S.productos.push(p);
+    indexar(); cerrarModal('mProd');
+    toast((S.editando ? '✅ Guardado: ' : '✅ Creado: ') + esc(p.c));
+    if (S.editando){ if ($('vConsultar').classList.contains('on')) consultar(p.c); }
+    else { ir('vRegistrar'); elegirProducto(p); }
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { S.ocupado = false; }
+}
+
+/* ----- Guardar movimiento ----- */
+async function guardar(){
+  if (S.ocupado) return;
+  if (!S.prod){ toast('Primero escanea o elige un producto.', true); $('codigo').focus(); return; }
+  const T = TIPOS[S.tipo];
+  let cant = parseFloat(String($('cant').value).replace(',', '.'));
+  if (isNaN(cant)){ toast('Escribe la cantidad.', true); return; }
+  if (T.signo) cant = Math.abs(cant) * S.signo;
+  const datos = {tipo: S.tipo, codigo: S.prod.c, ubicacion: $('ubic').value, destino: T.dest ? $('dest').value : '',
+    estadoOrigen: T.estO ? $('estO').value : 'DISPONIBLE', estadoDestino: T.estD ? $('estD').value : 'DISPONIBLE',
+    cantidad: cant, enPresentacion: !!(T.pres && S.enPres), precio: T.precio ? $('precio').value : '',
+    precioPorPresentacion: $('precioPor').value === 'p', proyecto: T.pry ? $('pry').value : '', area: T.area ? $('area').value : '',
+    responsable: T.resp ? $('resp').value : '', recordarDias: T.rec ? $('recordar').value : 0,
+    motivoBaja: T.motivo ? $('motivo').value : '', pendiente: T.pend ? $('pend').value : '', nota: $('nota').value};
+  const btn = $('btnGuardar'); btn.disabled = true; S.ocupado = true; btn.textContent = 'Guardando…';
+  try {
+    const r = await api('registrar', datos);
+    guardarLocal('ubic', datos.ubicacion); vibrar([40, 60, 40]);
+    const st = Object.keys(r.stock).map(u => `${esc(u)}: ${fmtN(r.stock[u])}`).join(' · ');
+    toast(`✅ ${esc(T.t)} · ${esc(r.producto)}<br><small>Ahora: ${st} ${esc(r.unidad)}</small>`);
+    agregarSesion(r);
+    S.prod = null; S.det = null;
+    $('codigo').value = ''; $('prodCard').classList.add('oculto'); $('nota').value = ''; $('precio').value = '';
+    $('resp').value = ''; $('motivo').value = ''; $('cant').value = S.tipo === 'CONTEO' ? '' : 1;
+    vis('bPres', false); actualizarProductoUI(); $('codigo').focus();
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { btn.disabled = false; S.ocupado = false; btn.textContent = 'Registrar ' + T.t.toLowerCase(); }
+}
+function agregarSesion(r){
+  S.cuenta++; $('contSesion').textContent = S.cuenta + ' movimiento(s)';
+  const div = document.createElement('div'); div.className = 'item';
+  const lugar = r.destino ? `${esc(r.ubicacion)} → ${esc(r.destino)}` : esc(r.ubicacion);
+  div.innerHTML = `<div class="top"><span><span class="badge ${r.tipo}">${esc(TIPOS[r.tipo].t)}</span> ${esc(r.id)}</span><span>${esc(r.fecha)}</span></div>
+    <div><b>${(r.tipo === 'AJUSTE' || r.tipo === 'CONTEO') && r.cantidad > 0 ? '+' : ''}${fmtN(r.cantidad)} ${esc(r.unidad)}</b> · ${esc(r.producto)}</div><div class="meta">${lugar}</div>`;
+  const box = $('sesion'); if (S.cuenta === 1) box.innerHTML = ''; box.prepend(div);
+}
+
+/* ================= Proyectos ================= */
+function abrirNuevoProyecto(desdeRegistrar){
+  S.pryVolverRegistrar = desdeRegistrar;
+  ['prNombre', 'prCliente', 'prResp', 'prFin', 'prNotas'].forEach(i => $(i).value = '');
+  $('prIni').value = hoyISO(); abrirModal('mPry'); setTimeout(() => $('prNombre').focus(), 60);
+}
+async function guardarProyecto(){
+  if (S.ocupado) return; S.ocupado = true;
+  try {
+    const p = await api('crearProyecto', {nombre: $('prNombre').value, cliente: $('prCliente').value, responsable: $('prResp').value,
+      inicio: $('prIni').value, fin: $('prFin').value, notas: $('prNotas').value});
+    S.proyectos.push(p); pintarProyectosSelect(); cerrarModal('mPry');
+    toast('✅ Proyecto creado: ' + esc(p.c));
+    if (S.pryVolverRegistrar) $('pry').value = p.c; else { cargarProyectos(); verProyecto(p.c); }
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { S.ocupado = false; }
+}
+document.querySelectorAll('#pFiltro button').forEach(b => b.onclick = () => {
+  S.pryFiltro = b.dataset.f; document.querySelectorAll('#pFiltro button').forEach(x => x.classList.toggle('on', x === b)); cargarProyectos();
+});
+async function cargarProyectos(){
+  const box = $('pLista');
+  try {
+    const l = (await api('listaProyectos')).filter(p => !S.pryFiltro || p.est === S.pryFiltro);
+    box.innerHTML = l.length ? l.map(p => `<div class="item" style="cursor:pointer" data-c="${esc(p.c)}" onclick="verProyecto(this.dataset.c)">
+      <div class="top"><span>${esc(p.c)} · ${esc(p.est)}</span><span>${esc(p.ini)}</span></div>
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(p.n)}</b><span style="white-space:nowrap">${money(p.costo)}</span></div>
+      <div class="meta">${[p.cli, p.resp].filter(Boolean).map(esc).join(' · ')}</div></div>`).join('') : '<div class="ayuda">No hay proyectos aquí.</div>';
+  } catch(e){ box.innerHTML = `<div class="aviso error">${esc(e.message)}</div>`; }
+}
+async function verProyecto(c){
+  const box = $('pDetalle'); box.innerHTML = '<div class="card ayuda">Cargando…</div>'; window.scrollTo(0, 0);
+  try {
+    const r = await api('resumenProyecto', c); S.pryActual = r;
+    const p = r.proyecto;
+    box.innerHTML = `<div class="card" style="border-color:var(--acc2)">
+      <div class="top meta">${esc(p.c)} · ${esc(p.est)}</div><h3 style="font-size:18px;margin:2px 0">${esc(p.n)}</h3>
+      <div class="meta">${[p.cli && 'Cliente: ' + p.cli, p.resp && 'Resp.: ' + p.resp, p.ini && 'Inicio: ' + p.ini, p.fin && 'Fin: ' + p.fin].filter(Boolean).map(esc).join(' · ')}</div>
+      ${r.items.length ? `<div class="tabla-scroll"><table style="margin-top:10px"><tr><th>Material</th><th class="n">Salió</th><th class="n">Devuelto</th><th class="n">Usado</th><th class="n">Costo</th></tr>
+        ${r.items.map(x => `<tr><td>${esc(x.d)}<br><small class="meta">${esc(x.c)}${x.uso ? ' · en uso ' + fmtN(x.uso) : ''}</small></td><td class="n">${fmtN(x.sal)}</td><td class="n">${fmtN(x.dev)}</td><td class="n">${fmtN(x.neto)} ${esc(x.u)}</td><td class="n">${money(x.val)}</td></tr>`).join('')}
+        <tr><td colspan="4"><b>Total</b></td><td class="n">${money(r.total)}</td></tr></table></div>` : '<div class="ayuda">Todavía no se registró material para este proyecto.</div>'}
+      <div class="acciones">
+        <button class="btn sm" onclick="imprimirProyecto()">🖨️ Imprimir resumen</button>
+        <button class="btn sm" onclick="hojaConsumo()">📝 Hoja de consumo en blanco</button>
+        <button class="btn sm" onclick="exportarProyecto()">📤 Pasar a hoja</button>
+        <button class="btn sm ${p.est === 'Cerrado' ? '' : 'peligro'}" data-c="${esc(p.c)}" data-e="${p.est === 'Cerrado' ? 'Activo' : 'Cerrado'}" onclick="estadoProyecto(this.dataset.c,this.dataset.e)">${p.est === 'Cerrado' ? 'Reabrir' : 'Cerrar proyecto'}</button>
+        <button class="btn sm" onclick="$('pDetalle').innerHTML=''">✕</button>
+      </div></div>`;
+  } catch(e){ box.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
+}
+async function estadoProyecto(c, e){
+  try { await api('cambiarEstadoProyecto', c, e); toast('Proyecto ' + (e === 'Cerrado' ? 'cerrado' : 'reabierto'));
+        S.proyectos = (await api('iniciar')).proyectos; pintarProyectosSelect(); verProyecto(c); cargarProyectos(); }
+  catch(err){ toast('⚠️ ' + esc(err.message), true); }
+}
+function imprimirProyecto(){
+  const r = S.pryActual, p = r.proyecto;
+  imprimir(`<h1>Consumo del proyecto ${esc(p.c)} · ${esc(p.n)}</h1><div class="sub">${[p.cli && 'Cliente: ' + p.cli, p.resp && 'Responsable: ' + p.resp, p.ini && 'Inicio: ' + p.ini, p.fin && 'Fin: ' + p.fin].filter(Boolean).map(esc).join(' · ')} · Impreso ${new Date().toLocaleString('es-PE')}</div>
+    <table><tr><th>Código</th><th>Material</th><th>Unidad</th><th class="n">Salió</th><th class="n">Devuelto</th><th class="n">Usado</th><th class="n">En uso</th><th class="n">Costo</th></tr>
+    ${r.items.map(x => `<tr><td>${esc(x.c)}</td><td>${esc(x.d)}</td><td>${esc(x.u)}</td><td class="n">${fmtN(x.sal)}</td><td class="n">${fmtN(x.dev)}</td><td class="n">${fmtN(x.neto)}</td><td class="n">${x.uso ? fmtN(x.uso) : ''}</td><td class="n">${money(x.val)}</td></tr>`).join('')}
+    <tr><td colspan="7"><b>Total</b></td><td class="n"><b>${money(r.total)}</b></td></tr></table>
+    <div class="firma"><div>Entregó (almacén)</div><div>Recibió / responsable</div></div>`);
+}
+function hojaConsumo(){
+  const p = S.pryActual.proyecto;
+  const filas = Array.from({length: 22}, () => '<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
+  imprimir(`<h1>Hoja de consumo · ${esc(p.c)} · ${esc(p.n)}</h1><div class="sub">Anota todo lo que se retira para este proyecto y lo que se devuelve. Luego se registra en la app.</div>
+    <table class="blanco"><tr><th style="width:11%">Fecha</th><th style="width:13%">Código</th><th>Material</th><th style="width:9%">Sale</th><th style="width:9%">Devuelve</th><th style="width:15%">Quién</th><th style="width:9%">Registrado ✓</th></tr>${filas}</table>`);
+}
+function exportarProyecto(){
+  const r = S.pryActual, p = r.proyecto;
+  exportar(`Consumo ${p.c} · ${p.n}`, ['Código', 'Material', 'Unidad', 'Salió', 'Devuelto', 'Usado', 'En uso', 'Costo'],
+    r.items.map(x => [x.c, x.d, x.u, x.sal, x.dev, x.neto, x.uso, x.val]));
+}
+
+/* ================= Consultar ================= */
+async function consultar(txt){
+  txt = String(txt || '').trim(); if (!txt) return;
+  $('qSug').classList.add('oculto');
+  if (!S.porCodigo[txt.toUpperCase()] && !esUbicacion(txt)){
+    const lista = buscarLocal(txt);
+    if (lista.length > 1){ pintarSugerencias($('qSug'), lista, p => { $('qCodigo').value = p.c; consultar(p.c); }); return; }
+    if (lista.length === 1) txt = lista[0].c;
+  }
+  const out = $('qResultado'); out.innerHTML = '<div class="card ayuda">Consultando…</div>';
+  try {
+    const r = await api('buscar', txt);
+    if (r.tipo === 'nuevo'){ out.innerHTML = `<div class="card aviso">El código <b>${esc(r.codigo)}</b> no está registrado.<div class="acciones"><button class="btn sm pri" data-c="${esc(r.codigo)}" onclick="abrirNuevoProducto(this.dataset.c)">＋ Crear producto</button></div></div>`; return; }
+    if (r.tipo === 'ubicacion'){
+      out.innerHTML = `<div class="card"><h3>📍 ${esc(r.ubicacion.c)}</h3><div class="meta">${esc(r.ubicacion.a)} · ${esc(r.ubicacion.d)}</div>
+        ${r.items.length ? `<table style="margin-top:8px"><tr><th>Producto</th><th class="n">Cant.</th></tr>${r.items.map(i =>
+          `<tr><td>${esc(i.d)}<br><small class="meta">${esc(i.c)}${i.e !== 'DISPONIBLE' ? ' · <span class="badge ' + esc(i.e) + '">' + esc(EST[i.e]) + '</span>' : ''}</small></td><td class="n">${fmtN(i.q)} ${esc(i.u)}</td></tr>`).join('')}</table>`
+          : '<div class="ayuda">No hay stock registrado aquí.</div>'}</div>`;
+      return;
+    }
+    const p = r.producto;
+    out.innerHTML = `<div class="card"><div class="meta">${esc(p.c)} · ${esc(p.fam)}${p.cla ? ' · ' + esc(p.cla) : ''}${p.mar ? ' · ' + esc(p.mar) : ''}${p.act === false ? ' · <b>INACTIVO</b>' : ''}</div>
+      <h3 style="font-size:18px;margin:2px 0 8px">${esc(p.d)}</h3>
+      <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin:0 0 8px">
+        <div class="kpi"><div class="v">${fmtN(r.tot.DISPONIBLE)}</div><div class="l">Disponible</div></div>
+        <div class="kpi"><div class="v">${fmtN(r.enUso)}</div><div class="l">En uso</div></div>
+        <div class="kpi"><div class="v">${fmtN(r.tot.REVISION)}</div><div class="l">Revisión</div></div>
+        <div class="kpi"><div class="v">${fmtN(r.tot.VENTA)}</div><div class="l">Para venta</div></div></div>
+      <div class="meta">Se cuenta en ${esc(p.u)}${p.pres ? ` · viene en ${esc(p.pres)} x ${fmtN(p.fac)}` : ''}${p.ubh ? ' · habitual: ' + esc(p.ubh) : ''}</div>
+      ${r.bajo ? `<div class="aviso error">Stock bajo: hay ${fmtN(r.tot.DISPONIBLE)} disponibles y el mínimo es ${fmtN(p.min)}.</div>` : ''}
+      <table style="margin-top:8px"><tr><th>Ubicación</th><th class="n">Cant.</th></tr>
+      ${r.stock.map(s => `<tr><td>${esc(s.u)}${s.e !== 'DISPONIBLE' ? ' <span class="badge ' + esc(s.e) + '">' + esc(EST[s.e]) + '</span>' : ''}<br><small class="meta">${esc(s.a)}</small></td><td class="n">${fmtN(s.q)}</td></tr>`).join('') || '<tr><td colspan="2" class="meta">Sin stock</td></tr>'}</table>
+      <div class="meta" style="margin-top:8px">📉 Consumo: <b style="color:#fff">${fmtN(r.consumoMes)}</b> ${esc(p.u)}/mes (90 días)${r.consumoMes > 0 ? ` · alcanza ~<b style="color:#fff">${fmtN(Math.floor(r.tot.DISPONIBLE / r.consumoMes * 10) / 10)}</b> meses` : ''}${p.cp ? ` · Valor: <b style="color:#fff">${money(r.valor)}</b> (${money(p.cp)} c/${esc(p.u)})` : ''}</div>
+      ${r.pendientes.length ? `<div style="margin-top:10px"><h3>🤝 En uso / prestado</h3>${r.pendientes.map(htmlPendiente).join('')}</div>` : ''}
+      <div class="acciones"><button class="btn sm" data-c="${esc(p.c)}" onclick="abrirEditarProducto(this.dataset.c)">✏️ Editar datos</button>
+        <button class="btn sm" data-c="${esc(p.c)}" onclick="kardexDe(this.dataset.c)">📒 Kardex</button></div></div>
+      <div class="card"><h3>Últimos movimientos</h3>${r.ultimos.map(m => htmlMov(m, true)).join('') || '<div class="ayuda">Ninguno.</div>'}</div>`;
+  } catch(e){ out.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
+}
+async function verStockBajo(){
+  const out = $('qResultado'); out.innerHTML = '<div class="card ayuda">Consultando…</div>';
+  try {
+    const l = await api('stockBajo');
+    out.innerHTML = `<div class="card"><h3>⚠️ Stock bajo (${l.length})</h3>${l.length ? `<table><tr><th>Producto</th><th class="n">Hay / mín.</th></tr>${l.map(x =>
+      `<tr><td>${esc(x.d)}<br><small class="meta">${esc(x.c)}</small></td><td class="n">${fmtN(x.total)} / ${fmtN(x.min)} ${esc(x.u)}</td></tr>`).join('')}</table>`
+      : '<div class="ayuda">Ningún producto bajo el mínimo. El mínimo se pone en ✏️ Editar datos de cada producto.</div>'}</div>`;
+  } catch(e){ out.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
+}
+async function verEstado(e){
+  const out = $('qResultado'); out.innerHTML = '<div class="card ayuda">Consultando…</div>';
+  try {
+    const l = await api('porEstado', e);
+    out.innerHTML = `<div class="card"><h3>${e === 'REVISION' ? '🔧' : '🏷️'} ${esc(EST[e])} (${l.length})</h3>${l.length ? `<table><tr><th>Producto</th><th>Dónde</th><th class="n">Cant.</th></tr>${l.map(x =>
+      `<tr><td>${esc(x.d)}<br><small class="meta">${esc(x.c)}</small></td><td>${esc(x.ub)}</td><td class="n">${fmtN(x.q)} ${esc(x.u)}</td></tr>`).join('')}</table>`
+      : '<div class="ayuda">Nada en este estado.</div>'}<div class="ayuda">Para cambiar el estado usa Registrar → Cambiar estado. Para vender o desechar usa Baja.</div></div>`;
+  } catch(err){ out.innerHTML = `<div class="card aviso error">${esc(err.message)}</div>`; }
+}
+async function verPendientes(){
+  const out = $('qResultado'); out.innerHTML = '<div class="card ayuda">Consultando…</div>';
+  try {
+    const l = await api('pendientes');
+    out.innerHTML = `<div class="card"><h3>🤝 En uso / prestados (${l.length})</h3>${l.map(htmlPendiente).join('') || '<div class="ayuda">No hay nada fuera.</div>'}</div>`;
+  } catch(e){ out.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
+}
+function htmlPendiente(x){
+  return `<div class="item"><div class="top"><span>${esc(x.c)} · desde ${esc(x.f.slice(0, 10))} (${x.diasFuera} días)</span>${x.vencido ? '<span class="badge PRESTAMO">⏰ Recordar</span>' : (x.aviso ? `<span>aviso ${esc(x.prox)}</span>` : '<span>sin aviso</span>')}</div>
+    <div><b>${fmtN(x.falta)} ${esc(x.un)}</b> · ${esc(x.d)}</div>
+    <div class="meta">${[x.resp && '👤 ' + x.resp, x.pry && '📁 ' + x.pry, 'salió de ' + x.ub].filter(Boolean).map(esc).join(' · ')}</div>
+    <div class="acciones" style="margin-top:6px">
+      <button class="btn sm pri" data-id="${esc(x.id)}" data-c="${esc(x.c)}" data-u="${esc(x.ub)}" onclick="devolverPendiente(this.dataset)">↩️ Devolver</button>
+      <button class="btn sm" data-id="${esc(x.id)}" onclick="posponer(this.dataset.id)">⏰ Recordar en 7 días</button>
+      ${x.aviso ? `<button class="btn sm" data-id="${esc(x.id)}" onclick="silenciar(this.dataset.id)">🔕 No recordar</button>` : ''}
+    </div></div>`;
+}
+function devolverPendiente(d){
+  ir('vRegistrar'); setTipo('DEVOLUCION');
+  const p = S.porCodigo[d.c.toUpperCase()]; if (!p) return;
+  $('ubic').value = p.ubh || d.u;
+  elegirProducto(p);
+  const fijar = () => { if (S.det){ actualizarProductoUI(); $('pend').value = d.id; const x = S.det.pendientes.find(z => z.id === d.id); if (x) $('cant').value = x.falta; } else setTimeout(fijar, 200); };
+  fijar();
+}
+async function posponer(id){ try { await api('recordatorio', id, 'posponer', 7); toast('Te lo recordaré en 7 días.'); refrescarPendientes(); } catch(e){ toast('⚠️ ' + esc(e.message), true); } }
+async function silenciar(id){ try { await api('recordatorio', id, 'silenciar'); toast('🔕 Ya no se recordará.'); refrescarPendientes(); } catch(e){ toast('⚠️ ' + esc(e.message), true); } }
+function refrescarPendientes(){ if ($('vInicio').classList.contains('on')) cargarInicio(); else verPendientes(); }
+
+async function verHistorial(filtro){
+  const out = $('qResultado');
+  out.innerHTML = `<div class="card"><h3>🕘 Historial</h3><div class="fila"><input id="hFiltro" placeholder="Código, producto, persona, proyecto, tipo…" value="${esc(filtro || '')}"><button class="btn pri" style="flex:0 0 auto" onclick="verHistorial($('hFiltro').value)">Buscar</button></div>
+    <div class="ayuda">Últimos 80. Para corregir un error se <b>anula</b> (queda registrado) y se vuelve a registrar.</div><div id="hLista" style="margin-top:8px"><div class="ayuda">Cargando…</div></div></div>`;
+  $('hFiltro').addEventListener('keydown', e => { if (e.key === 'Enter') verHistorial($('hFiltro').value); });
+  try {
+    const l = await api('historial', filtro || '');
+    $('hLista').innerHTML = l.length ? l.map(m => htmlMov(m, true)).join('') : '<div class="ayuda">Sin movimientos.</div>';
+  } catch(e){ $('hLista').innerHTML = `<div class="aviso error">${esc(e.message)}</div>`; }
+}
+function htmlMov(m, conAnular){
+  const anulado = m.e === 'ANULADO';
+  const T = TIPOS[m.t];
+  let lugar = m.dest ? `${esc(m.u)} → ${esc(m.dest)}` : esc(m.u);
+  if (m.t === 'CAMBIO') lugar += ` · ${esc(EST[m.eo])} → ${esc(EST[m.ed])}`;
+  else if (m.eo && m.eo !== 'DISPONIBLE') lugar += ` · ${esc(EST[m.eo])}`;
+  const extra = [m.pry && '📁 ' + m.pry, m.area, m.resp && '👤 ' + m.resp].filter(Boolean).map(esc).join(' · ');
+  return `<div class="item">
+    <div class="top"><span><span class="badge ${esc(m.t)}">${esc(T ? T.t : (m.t === 'ANULACION' ? 'Anulación' : m.t))}</span> ${esc(m.id)} ${anulado ? '<span class="badge anul">ANULADO</span>' : ''}</span><span>${esc(m.f)}</span></div>
+    <div class="${anulado ? 'tachado' : ''}"><b>${(m.t === 'AJUSTE' || m.t === 'CONTEO') && m.q > 0 ? '+' : ''}${fmtN(m.q)} ${esc(m.un)}</b> · ${esc(m.d)}</div>
+    <div class="meta">${lugar}${extra ? ' · ' + extra : ''} · ${esc(m.us)}</div>
+    ${m.nota ? `<div class="meta">📝 ${esc(m.nota)}</div>` : ''}
+    ${conAnular && !anulado && m.t !== 'ANULACION' ? `<button class="btn sm peligro" style="margin-top:6px" data-id="${esc(m.id)}" onclick="pedirAnular(this)">Anular</button>
+      <div class="oculto"><input placeholder="Motivo de la anulación" style="margin-top:6px"><button class="btn peligro big" data-id="${esc(m.id)}" onclick="confirmarAnular(this)">Confirmar anulación</button></div>` : ''}
+  </div>`;
+}
+function pedirAnular(b){ const d = b.nextElementSibling; d.classList.remove('oculto'); d.querySelector('input').focus(); b.classList.add('oculto'); }
+async function confirmarAnular(b){
+  const motivo = b.previousElementSibling.value;
+  try { await api('anular', b.dataset.id, motivo); toast('Movimiento ' + esc(b.dataset.id) + ' anulado. El stock se corrigió.');
+        const f = $('hFiltro'); if (f) verHistorial(f.value); else consultar($('qCodigo').value); }
+  catch(e){ toast('⚠️ ' + esc(e.message), true); }
+}
+
+/* ================= Reportes ================= */
+function rangoK(n){
+  const h = new Date(); let d = new Date();
+  if (n === 'mes') d = new Date(h.getFullYear(), h.getMonth(), 1); else d.setDate(h.getDate() - n);
+  $('kDesde').value = hoyISO(d); $('kHasta').value = hoyISO(h);
+}
+function kardexDe(c){ ir('vReportes'); $('kCodigo').value = c; generarKardex(); }
+async function generarKardex(){
+  let c = $('kCodigo').value.trim();
+  if (!S.porCodigo[c.toUpperCase()]){ const l = buscarLocal(c); if (l.length === 1) c = l[0].c; else { pintarSugerencias($('kSug'), l, p => { $('kCodigo').value = p.c; generarKardex(); }); if (!l.length) toast('Elige un producto.', true); return; } }
+  $('kCodigo').value = c; $('kSug').classList.add('oculto');
+  const out = $('kResultado'); out.innerHTML = '<div class="card ayuda">Calculando…</div>';
+  try {
+    const k = await api('kardex', c, $('kDesde').value, $('kHasta').value); S.ultimoKardex = k;
+    const p = k.producto;
+    out.innerHTML = `<div class="card" style="border-color:var(--acc2)"><div class="meta">${esc(p.c)} · ${esc(k.desde)} al ${esc(k.hasta)}</div><h3 style="font-size:17px;margin:2px 0 10px">${esc(p.d)}</h3>
+      <div class="kpis" style="margin:0 0 8px"><div class="kpi"><div class="v">${fmtN(k.saldoIni)}</div><div class="l">Saldo inicial</div></div>
+        <div class="kpi"><div class="v" style="color:var(--ok)">+${fmtN(k.entradas)}</div><div class="l">Entradas</div></div>
+        <div class="kpi"><div class="v" style="color:var(--bad)">−${fmtN(k.salidas)}</div><div class="l">Salidas</div></div>
+        <div class="kpi"><div class="v">${fmtN(k.saldoFin)}</div><div class="l">Saldo final (${esc(p.u)})</div></div>
+        <div class="kpi"><div class="v">${fmtN(k.consumoDia)}</div><div class="l">Consumo/día</div></div>
+        <div class="kpi"><div class="v">${fmtN(k.rotacion)}</div><div class="l">Rotación</div></div></div>
+      <div class="meta">Consumo del periodo: <b style="color:#fff">${fmtN(k.consumo)}</b> · ~${fmtN(k.consumoMes)}/mes${k.diasCobertura != null ? ` · alcanza ~<b style="color:#fff">${k.diasCobertura}</b> días` : ''}
+        · <b style="color:var(--tq)">Mínimo sugerido: ${fmtN(k.minimoSugerido)}</b> (para ${k.diasReserva} días)${p.min ? ' · mínimo actual ' + fmtN(p.min) : ''}${p.cp ? ' · Valor: ' + money(k.valorFin) : ''}</div>
+      <div class="tabla-scroll"><table style="margin-top:10px"><tr><th>Fecha</th><th>Movimiento</th><th class="n">Ent.</th><th class="n">Sal.</th><th class="n">Saldo</th></tr>
+      <tr><td colspan="4" class="meta">Saldo inicial</td><td class="n">${fmtN(k.saldoIni)}</td></tr>
+      ${k.filas.map(f => `<tr><td style="white-space:nowrap">${esc(f.f)}</td><td><span class="badge ${esc(f.t)}">${esc(TIPOS[f.t] ? TIPOS[f.t].t : f.t)}</span><br><small class="meta">${esc(f.det)} · ${esc(f.us)}</small></td>
+        <td class="n">${f.ent ? fmtN(f.ent) : ''}</td><td class="n">${f.sal ? fmtN(f.sal) : ''}</td><td class="n">${fmtN(f.saldo)}</td></tr>`).join('')}</table></div>
+      <div class="acciones"><button class="btn sm" onclick="imprimirKardex()">🖨️ Imprimir / PDF</button><button class="btn sm" onclick="exportarKardex()">📤 Pasar a hoja (Excel)</button>
+        ${k.minimoSugerido > 0 && k.minimoSugerido !== p.min ? `<button class="btn sm tq" onclick="aplicarMinimo()">Usar mínimo sugerido</button>` : ''}</div></div>`;
+  } catch(e){ out.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
+}
+async function aplicarMinimo(){
+  const k = S.ultimoKardex, p = S.porCodigo[k.producto.c.toUpperCase()];
+  try {
+    const n = await api('editarProducto', p.c, {descripcion: p.d, familia: p.fam, clase: p.cla, marca: p.mar, unidad: p.u, presentacion: p.pres,
+      factor: p.fac, codBarras: p.bar, ubicHabitual: p.ubh, minimo: k.minimoSugerido, kardex: p.kdx, notas: p.notas, activo: p.act});
+    Object.assign(p, n); indexar(); toast('Mínimo actualizado a ' + fmtN(k.minimoSugerido)); generarKardex();
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+}
+function imprimirKardex(){
+  const k = S.ultimoKardex, p = k.producto;
+  imprimir(`<h1>Kardex · ${esc(p.c)} · ${esc(p.d)}</h1><div class="sub">Del ${esc(k.desde)} al ${esc(k.hasta)} · Unidad: ${esc(p.u)} · Impreso ${new Date().toLocaleString('es-PE')} por ${esc(S.u)}</div>
+    <table><tr><th>Fecha</th><th>N°</th><th>Tipo</th><th>Detalle</th><th>Usuario</th><th class="n">Entrada</th><th class="n">Salida</th><th class="n">Saldo</th></tr>
+    <tr><td colspan="7">Saldo inicial</td><td class="n">${fmtN(k.saldoIni)}</td></tr>
+    ${k.filas.map(f => `<tr><td>${esc(f.f)}</td><td>${esc(f.id)}</td><td>${esc(TIPOS[f.t] ? TIPOS[f.t].t : f.t)}</td><td>${esc(f.det)}</td><td>${esc(f.us)}</td><td class="n">${f.ent ? fmtN(f.ent) : ''}</td><td class="n">${f.sal ? fmtN(f.sal) : ''}</td><td class="n">${fmtN(f.saldo)}</td></tr>`).join('')}
+    <tr><td colspan="5"><b>Totales</b></td><td class="n"><b>${fmtN(k.entradas)}</b></td><td class="n"><b>${fmtN(k.salidas)}</b></td><td class="n"><b>${fmtN(k.saldoFin)}</b></td></tr></table>
+    <p>Consumo del periodo: ${fmtN(k.consumo)} · Consumo diario: ${fmtN(k.consumoDia)} · Rotación: ${fmtN(k.rotacion)} · Mínimo sugerido: ${fmtN(k.minimoSugerido)}${p.cp ? ' · Valor final: ' + money(k.valorFin) : ''}</p>
+    <p>Conteo físico: ____________ &nbsp; Diferencia: ____________ &nbsp; Justificación: ________________________________</p>
+    <div class="firma"><div>Contó</div><div>Revisó</div></div>`);
+}
+function exportarKardex(){
+  const k = S.ultimoKardex, p = k.producto;
+  exportar(`Kardex ${p.c} · ${p.d} · ${k.desde} al ${k.hasta}`, ['Fecha', 'N°', 'Tipo', 'Detalle', 'Usuario', 'Entrada', 'Salida', 'Saldo'],
+    [['', '', 'Saldo inicial', '', '', '', '', k.saldoIni]].concat(k.filas.map(f => [f.f, f.id, TIPOS[f.t] ? TIPOS[f.t].t : f.t, f.det, f.us, f.ent || '', f.sal || '', f.saldo])));
+}
+async function hojaControl(frec){
+  try {
+    const l = (await api('listaKardex')).filter(x => !frec || x.kdx === frec);
+    if (!l.length){ toast('No hay productos con seguimiento ' + (frec ? frec.toLowerCase() : '') + '. Actívalo en ✏️ Editar datos del producto.', true); return; }
+    imprimir(`<h1>Hoja de control de stock${frec ? ' · ' + (frec === 'DIARIO' ? 'diario' : 'semanal') : ''}</h1><div class="sub">Fecha: ____ / ____ / ______ · Contó: ____________________ · Impreso ${new Date().toLocaleString('es-PE')}</div>
+      <table class="blanco"><tr><th>Código</th><th>Producto</th><th>Ubicaciones</th><th>Unid.</th><th class="n">Sistema</th><th class="n">Mín.</th><th style="width:12%">Físico</th><th style="width:10%">Dif.</th><th style="width:20%">Observación</th></tr>
+      ${l.map(x => `<tr><td>${esc(x.c)}</td><td>${esc(x.d)}</td><td>${Object.keys(x.ubs).map(u => esc(u) + ': ' + fmtN(x.ubs[u])).join(', ')}</td><td>${esc(x.u)}</td><td class="n">${fmtN(x.total)}</td><td class="n">${x.min ? fmtN(x.min) : ''}</td><td></td><td></td><td></td></tr>`).join('')}</table>
+      <div class="firma"><div>Contó</div><div>Revisó</div></div>`);
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+}
+async function exportar(titulo, enc, filas){
+  try { await api('exportarReporte', titulo, enc, filas); toast('📤 Listo: está en la hoja <b>REPORTE</b>. Desde Google Sheets: Archivo → Descargar → Excel.'); }
+  catch(e){ toast('⚠️ ' + esc(e.message), true); }
+}
+function imprimir(html){ $('print').innerHTML = html; setTimeout(() => window.print(), 150); }
+
+const LIB_BARRAS = [WEB + 'cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js', WEB + 'cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js'];
+async function generarEtiquetas(){
+  try { if (typeof JsBarcode === 'undefined') await cargarScript(LIB_BARRAS); } catch(e){ toast(esc(e.message), true); return; }
+  const f = norm($('eFiltro').value);
+  let items = $('eTipo').value === 'ubic' ? S.ubicaciones.map(u => ({c: u.c, t: u.d, s: u.a})) : S.productos.filter(p => p.act !== false).map(p => ({c: p.c, t: p.d, s: p.fam}));
+  if (f) items = items.filter(x => norm(x.c + ' ' + x.t + ' ' + x.s).indexOf(f) >= 0);
+  if (!items.length){ toast('No hay nada que coincida.', true); return; }
+  const cont = document.createElement('div'); cont.className = 'etiquetas';
+  cont.innerHTML = items.map((x, i) => `<div class="etq"><svg id="bc${i}"></svg><div class="t">${esc(x.t)}</div><div class="s">${esc(x.s)}</div></div>`).join('');
+  $('print').innerHTML = ''; $('print').appendChild(cont);
+  items.forEach((x, i) => { try { JsBarcode('#bc' + i, x.c, {format: 'CODE128', width: 1.8, height: 50, fontSize: 15, margin: 4}); } catch(e){} });
+  setTimeout(() => window.print(), 200);
+}
+
+
+/* ================= Máquinas y mantenimiento ================= */
+const EST_MAQ = {OPERATIVA:'🟢 Operativa', MANTENIMIENTO:'🟡 En mantenimiento', AVERIADA:'🔴 Averiada', BAJA:'⚫ De baja'};
+const ST_PLAN = {VENCIDO:'Vencido', PROXIMO:'Próximo', AL_DIA:'Al día', INACTIVO:'Inactivo'};
+function txtDias(d){
+  if (d == null) return '';
+  if (d < 0) return `vencido hace ${-d} día${d === -1 ? '' : 's'}`;
+  if (d === 0) return 'toca hoy';
+  return `en ${d} día${d === 1 ? '' : 's'}`;
+}
+function cadaTxt(n){ return n % 30 === 0 ? `cada ${n / 30} mes${n === 30 ? '' : 'es'}` : n % 7 === 0 ? `cada ${n / 7} semana${n === 7 ? '' : 's'}` : `cada ${n} días`; }
+function htmlAlertaPlan(p){
+  return `<div class="item"><div class="top"><span><span class="badge ${p.st}">${p.st === 'VENCIDO' ? '⏰ ' : ''}${esc(ST_PLAN[p.st])}</span> ${esc(p.prox)}</span><span>${esc(txtDias(p.dias))}</span></div>
+    <div><b>${esc(p.nm || p.maq)}</b> · ${esc(p.tarea)}</div>
+    <div class="acciones" style="margin-top:6px">${p.ot ? `<span class="meta">Orden ${esc(p.ot)} en curso</span>`
+      : `<button class="btn sm pri" data-m="${esc(p.maq)}" data-p="${esc(p.id)}" onclick="abrirOrden('PREVENTIVO', this.dataset.m, this.dataset.p)">🛠️ Iniciar mantenimiento</button>`}</div></div>`;
+}
+function htmlOrdenAbierta(o){
+  return `<div class="item"><div class="top"><span><span class="badge ${o.tipo === 'CORRECTIVO' ? 'AVERIADA' : 'MANTENIMIENTO'}">${o.tipo === 'CORRECTIVO' ? 'Correctivo' : 'Preventivo'}</span> ${esc(o.id)}</span><span>desde ${esc(o.ini)}</span></div>
+    <div><b>${esc(o.nm || o.maq)}</b>${o.planTarea ? ' · ' + esc(o.planTarea) : ''}</div>
+    <div class="meta">${[o.falla, o.resp && '👤 ' + o.resp + (o.ext ? ' (externo)' : '')].filter(Boolean).map(esc).join(' · ')}</div>
+    ${o.reps && o.reps.length ? `<div class="meta">🔩 ${o.reps.map(x => esc(fmtN(x.q) + ' ' + x.un + ' ' + x.d)).join(', ')} · ${money(o.cr)}</div>` : ''}
+    <div class="acciones" style="margin-top:6px">
+      <button class="btn sm" data-id="${esc(o.id)}" data-n="${esc(o.nm || o.maq)}" onclick="abrirRepuesto(this.dataset.id, this.dataset.n)">🔩 Agregar repuesto</button>
+      <button class="btn sm pri" data-id="${esc(o.id)}" data-n="${esc(o.nm || o.maq)}" data-cr="${o.cr || 0}" onclick="abrirCierre(this.dataset)">✅ Cerrar orden</button>
+      <button class="btn sm peligro" data-id="${esc(o.id)}" onclick="anularOT(this.dataset.id)">Anular</button></div></div>`;
+}
+async function cargarMaquinas(){
+  try {
+    const r = await api('listaMantenimiento'); S.mant = r;
+    const al = r.alertas;
+    $('mAlertas').innerHTML = al.planes.length ? `<div class="card ${al.planes.some(p => p.st === 'VENCIDO') ? 'alerta-roja' : 'alerta-ambar'}"><h3>⏰ Mantenimientos por hacer (${al.planes.length})</h3>${al.planes.map(htmlAlertaPlan).join('')}</div>` : '';
+    $('mAbiertas').innerHTML = r.abiertas.length ? `<div class="card"><h3>🔧 Órdenes en curso (${r.abiertas.length})</h3>${r.abiertas.map(htmlOrdenAbierta).join('')}</div>` : '';
+    const activas = r.maquinas.filter(m => m.est !== 'BAJA'), baja = r.maquinas.filter(m => m.est === 'BAJA');
+    $('mLista').innerHTML = r.maquinas.length ? activas.concat(baja).map(m => `<div class="item" style="cursor:pointer" data-c="${esc(m.c)}" onclick="verMaquina(this.dataset.c)">
+      <div class="top"><span>${esc(m.c)}${m.tipo ? ' · ' + esc(m.tipo) : ''}</span><span class="badge ${m.est}">${esc(EST_MAQ[m.est])}</span></div>
+      <div><b>${esc(m.n)}</b></div>
+      <div class="meta">${m.prox ? `Próximo: ${esc(m.prox.tarea)} · ${esc(m.prox.prox)} (${esc(txtDias(m.prox.dias))})` : (m.est === 'BAJA' ? 'Sin planes' : 'Sin plan preventivo · tócala para agregar uno')}</div></div>`).join('')
+      : '<div class="ayuda">Aún no hay máquinas. Pulsa “＋ Nueva máquina”.</div>';
+  } catch(e){ $('mLista').innerHTML = `<div class="aviso error">${esc(e.message)}</div>`; }
+}
+async function verMaquina(c){
+  const box = $('mDetalle'); box.innerHTML = '<div class="card ayuda">Cargando…</div>'; window.scrollTo(0, 0);
+  try {
+    const r = await api('detalleMaquina', c); S.maqActual = r;
+    const m = r.maquina, t = r.tot;
+    box.innerHTML = `<div class="card" style="border-color:var(--acc2)">
+      <div class="top meta"><span>${esc(m.c)}${m.tipo ? ' · ' + esc(m.tipo) : ''}</span> <span class="badge ${m.est}">${esc(EST_MAQ[m.est])}</span></div>
+      <h3 style="font-size:18px;margin:4px 0">${esc(m.n)}</h3>
+      <div class="meta">${[m.mar, m.mod, m.ser && 'Serie ' + m.ser, m.ub && '📍 ' + m.ub, m.fc && 'Compra ' + m.fc, m.prov && '🧰 ' + m.prov].filter(Boolean).map(esc).join(' · ')}</div>
+      ${m.notas ? `<div class="meta">📝 ${esc(m.notas)}</div>` : ''}
+      <div class="kpis" style="margin:10px 0 0;grid-template-columns:repeat(3,1fr)">
+        <div class="kpi"><div class="v">${t.ordenes}</div><div class="l">Mantenimientos</div></div>
+        <div class="kpi"><div class="v">${t.correctivos}</div><div class="l">Averías</div></div>
+        <div class="kpi"><div class="v">${t.diasParadaAnio}</div><div class="l">Días parada (año)</div></div></div>
+      <div class="meta" style="margin-top:8px">Costo este año: <b style="color:#fff">${money(t.costoAnio)}</b> · Total: <b style="color:#fff">${money(t.costoTotal)}</b>${t.ultimo ? ' · Último: ' + esc(t.ultimo) : ''}</div>
+      <h3 style="margin-top:14px">📅 Planes preventivos</h3>
+      ${r.planes.length ? r.planes.map(p => `<div class="item"><div class="top"><span><span class="badge ${p.st}">${esc(ST_PLAN[p.st])}</span> ${esc(cadaTxt(p.cada))} · aviso ${p.avisar} días antes</span>
+          <button class="btn sm" data-id="${esc(p.id)}" onclick="editarPlanUI(this.dataset.id)">✏️</button></div>
+        <div><b>${esc(p.tarea)}</b></div><div class="meta">${p.ult ? 'Último: ' + esc(p.ult) + ' · ' : ''}${p.act ? 'Próximo: ' + esc(p.prox) + ' (' + esc(txtDias(p.dias)) + ')' : 'Plan desactivado'}</div></div>`).join('')
+        : '<div class="ayuda">Sin planes. Agrega uno con la frecuencia que necesite esta máquina.</div>'}
+      <div class="acciones">${m.est !== 'BAJA' ? `<button class="btn sm pri" data-c="${esc(m.c)}" onclick="nuevoPlan(this.dataset.c)">＋ Agregar plan</button>
+        <button class="btn sm" data-c="${esc(m.c)}" onclick="abrirOrden('PREVENTIVO', this.dataset.c)">🛠️ Mantenimiento</button>
+        <button class="btn sm peligro" data-c="${esc(m.c)}" onclick="abrirOrden('CORRECTIVO', this.dataset.c)">⚠️ Avería</button>` : ''}</div>
+      <h3 style="margin-top:14px">🕘 Historial</h3>
+      ${r.ordenes.length ? r.ordenes.map(o => `<div class="item"><div class="top"><span><span class="badge ${o.tipo === 'CORRECTIVO' ? 'AVERIADA' : 'MANTENIMIENTO'}">${o.tipo === 'CORRECTIVO' ? 'Correctivo' : 'Preventivo'}</span> ${esc(o.id)} · ${o.est === 'ABIERTA' ? '<b>en curso</b>' : esc(o.ini) + ' → ' + esc(o.fin)}</span><span>${money(o.cs + o.cr)}</span></div>
+        <div>${esc(o.planTarea || o.falla || '')}</div>
+        <div class="meta">${[o.trab && '✔ ' + o.trab, o.resp && '👤 ' + o.resp + (o.ext ? ' (externo)' : ''), o.est === 'CERRADA' && o.dp + ' día(s) parada'].filter(Boolean).map(esc).join(' · ')}</div>
+        ${o.reps.length ? `<div class="meta">🔩 ${o.reps.map(x => esc(fmtN(x.q) + ' ' + x.un + ' ' + x.d)).join(', ')}</div>` : ''}</div>`).join('') : '<div class="ayuda">Sin mantenimientos registrados.</div>'}
+      <div class="acciones">
+        <button class="btn sm" onclick="editarMaquinaUI()">✏️ Editar datos</button>
+        <button class="btn sm" onclick="imprimirFichaMaquina()">🖨️ Imprimir ficha</button>
+        <button class="btn sm" onclick="$('mDetalle').innerHTML=''">✕</button></div></div>`;
+  } catch(e){ box.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
+}
+function abrirMaquina(){
+  S.editMaq = null; $('mqTitulo').textContent = 'Nueva máquina'; $('mqGuardar').textContent = 'Crear máquina';
+  ['mqNombre', 'mqTipo', 'mqMarca', 'mqModelo', 'mqSerie', 'mqCompra', 'mqProv', 'mqNotas'].forEach(i => $(i).value = '');
+  $('mqUbic').value = ''; vis('mqEstadoBox', false); abrirModal('mMaq'); setTimeout(() => $('mqNombre').focus(), 60);
+}
+function editarMaquinaUI(){
+  const m = S.maqActual.maquina; S.editMaq = m.c;
+  $('mqTitulo').textContent = 'Editar ' + m.c; $('mqGuardar').textContent = 'Guardar cambios';
+  $('mqNombre').value = m.n; $('mqTipo').value = m.tipo; $('mqMarca').value = m.mar; $('mqModelo').value = m.mod; $('mqSerie').value = m.ser;
+  $('mqCompra').value = m.fc; $('mqProv').value = m.prov; $('mqNotas').value = m.notas; $('mqUbic').value = m.ub; $('mqEstado').value = m.est;
+  vis('mqEstadoBox', true); abrirModal('mMaq');
+}
+async function guardarMaquina(){
+  if (S.ocupado) return; S.ocupado = true;
+  const d = {nombre: $('mqNombre').value, tipo: $('mqTipo').value, marca: $('mqMarca').value, modelo: $('mqModelo').value, serie: $('mqSerie').value,
+    ubicacion: $('mqUbic').value, fechaCompra: $('mqCompra').value, proveedor: $('mqProv').value, notas: $('mqNotas').value, estado: S.editMaq ? $('mqEstado').value : ''};
+  try {
+    const m = S.editMaq ? await api('editarMaquina', S.editMaq, d) : await api('crearMaquina', d);
+    cerrarModal('mMaq'); toast('✅ ' + (S.editMaq ? 'Guardado: ' : 'Máquina creada: ') + esc(m.c));
+    await cargarMaquinas(); verMaquina(m.c);
+    if (!S.editMaq) setTimeout(() => nuevoPlan(m.c), 400);
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { S.ocupado = false; }
+}
+function nombreMaq(c){ const m = S.mant && S.mant.maquinas.find(x => x.c === c); return m ? m.n : c; }
+function nuevoPlan(c){
+  S.planMaq = c; S.editPlan = null; $('plTitulo').textContent = 'Nuevo plan preventivo'; $('plGuardar').textContent = 'Crear plan';
+  $('plMaq').textContent = c + ' · ' + nombreMaq(c);
+  $('plTarea').value = ''; $('plCada').value = ''; $('plUnidad').value = '1'; $('plAvisar').value = ''; $('plUlt').value = ''; $('plProx').value = '';
+  vis('plUltBox', true); vis('plProxBox', false); vis('plActBox', false); abrirModal('mPlan'); setTimeout(() => $('plTarea').focus(), 60);
+}
+function editarPlanUI(id){
+  const p = S.maqActual.planes.find(x => x.id === id); if (!p) return;
+  S.editPlan = id; S.planMaq = p.maq; $('plTitulo').textContent = 'Editar plan ' + id; $('plGuardar').textContent = 'Guardar cambios';
+  $('plMaq').textContent = p.maq + ' · ' + nombreMaq(p.maq);
+  $('plTarea').value = p.tarea;
+  const u = p.cada % 30 === 0 ? 30 : p.cada % 7 === 0 ? 7 : 1;
+  $('plUnidad').value = String(u); $('plCada').value = p.cada / u; $('plAvisar').value = p.avisar; $('plProx').value = ''; $('plAct').checked = p.act;
+  vis('plUltBox', false); vis('plProxBox', true); vis('plActBox', true); abrirModal('mPlan');
+}
+async function guardarPlan(){
+  if (S.ocupado) return; S.ocupado = true;
+  const cada = Math.round((parseFloat($('plCada').value) || 0) * (+$('plUnidad').value));
+  try {
+    if (S.editPlan) await api('editarPlan', S.editPlan, {tarea: $('plTarea').value, cadaDias: cada, avisarDias: $('plAvisar').value, proxima: $('plProx').value, activo: $('plAct').checked});
+    else await api('crearPlan', {maquina: S.planMaq, tarea: $('plTarea').value, cadaDias: cada, avisarDias: $('plAvisar').value, ultima: $('plUlt').value});
+    cerrarModal('mPlan'); toast('✅ Plan guardado'); await cargarMaquinas(); verMaquina(S.planMaq);
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { S.ocupado = false; }
+}
+function setTipoOT(t){
+  S.tipoOT = t; $('otPrev').classList.toggle('on', t === 'PREVENTIVO'); $('otCorr').classList.toggle('on', t === 'CORRECTIVO');
+  vis('otPlanBox', t === 'PREVENTIVO');
+  $('otFallaLbl').textContent = t === 'CORRECTIVO' ? '¿Qué falla tiene? *' : 'Detalle (opcional)';
+  $('otTitulo').textContent = t === 'CORRECTIVO' ? 'Reportar avería' : 'Iniciar mantenimiento';
+  pintarPlanesOT();
+}
+function pintarPlanesOT(planSel){
+  const c = $('otMaq').value;
+  const ps = S.mant ? S.mant.planes.filter(p => p.maq === c && p.act) : [];
+  $('otPlan').innerHTML = '<option value="">— No programado —</option>' + ps.map(p => `<option value="${esc(p.id)}">${esc(p.tarea)} · ${esc(txtDias(p.dias))}</option>`).join('');
+  if (planSel) $('otPlan').value = planSel;
+  else { const v = ps.filter(p => p.st === 'VENCIDO' || p.st === 'PROXIMO'); if (v.length === 1) $('otPlan').value = v[0].id; }
+}
+async function abrirOrden(tipo, maq, plan){
+  if (!S.mant){ try { S.mant = await api('listaMantenimiento'); } catch(e){ toast('⚠️ ' + esc(e.message), true); return; } }
+  const lista = S.mant.maquinas.filter(m => m.est !== 'BAJA');
+  if (!lista.length){ toast('Primero registra una máquina.', true); return; }
+  $('otMaq').innerHTML = '<option value="">— Elegir —</option>' + lista.map(m => `<option value="${esc(m.c)}">${esc(m.c)} · ${esc(m.n)}</option>`).join('');
+  $('otMaq').value = maq || ''; $('otFalla').value = ''; $('otResp').value = ''; $('otExt').checked = false; $('otIni').value = hoyISO();
+  setTipoOT(tipo); pintarPlanesOT(plan);
+  abrirModal('mOT');
+}
+async function guardarOrden(){
+  if (S.ocupado) return; S.ocupado = true;
+  try {
+    const o = await api('abrirOrden', {maquina: $('otMaq').value, tipo: S.tipoOT, plan: S.tipoOT === 'PREVENTIVO' ? $('otPlan').value : '',
+      falla: $('otFalla').value, responsable: $('otResp').value, externo: $('otExt').checked, inicio: $('otIni').value});
+    cerrarModal('mOT'); toast(`✅ Orden ${esc(o.id)} abierta. La máquina quedó ${S.tipoOT === 'CORRECTIVO' ? 'averiada' : 'en mantenimiento'}.`);
+    ir('vMaquinas');
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { S.ocupado = false; }
+}
+function abrirCierre(d){
+  S.cierreOT = d.id; $('ciTitulo').textContent = 'Cerrar ' + d.id; $('ciInfo').textContent = d.n + (+d.cr ? ' · Repuestos: ' + money(+d.cr) : '');
+  $('ciTrabajo').value = ''; $('ciCosto').value = ''; $('ciFin').value = hoyISO(); $('ciEstado').value = 'OPERATIVA';
+  abrirModal('mCerrar'); setTimeout(() => $('ciTrabajo').focus(), 60);
+}
+async function guardarCierre(){
+  if (S.ocupado) return; S.ocupado = true;
+  try {
+    const r = await api('cerrarOrden', S.cierreOT, {trabajo: $('ciTrabajo').value, costoServicio: $('ciCosto').value, fin: $('ciFin').value, estadoFinal: $('ciEstado').value});
+    cerrarModal('mCerrar'); toast(`✅ Orden cerrada · ${r.diasParada} día(s) parada · repuestos ${money(r.costoRepuestos)}`);
+    $('mDetalle').innerHTML = ''; cargarMaquinas();
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { S.ocupado = false; }
+}
+async function anularOT(id){
+  try {
+    const m = await pedirTexto('Motivo para anular ' + id);
+    if (!m) return;
+    await api('anularOrden', id, m); toast('Orden ' + esc(id) + ' anulada.'); cargarMaquinas();
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+}
+function pedirTexto(titulo){
+  return new Promise(res => {
+    const div = document.createElement('div'); div.className = 'modal';
+    div.innerHTML = `<div class="caja"><h3>${esc(titulo)}</h3><input id="ptxt" placeholder="Escribe aquí"><div class="fila" style="margin-top:12px"><button class="btn" id="ptNo">Cancelar</button><button class="btn pri" id="ptSi">Aceptar</button></div></div>`;
+    document.body.appendChild(div);
+    const fin = v => { div.remove(); res(v); };
+    div.querySelector('#ptNo').onclick = () => fin('');
+    div.querySelector('#ptSi').onclick = () => fin(div.querySelector('#ptxt').value.trim());
+    setTimeout(() => div.querySelector('#ptxt').focus(), 50);
+  });
+}
+function abrirRepuesto(id, n){
+  S.repOT = id; S.repProd = null; $('rpInfo').textContent = id + ' · ' + n;
+  $('rpProd').value = ''; $('rpCard').classList.add('oculto'); $('rpSug').classList.add('oculto'); $('rpUbic').innerHTML = ''; $('rpCant').value = 1;
+  abrirModal('mRep'); setTimeout(() => $('rpProd').focus(), 60);
+}
+async function elegirRepuesto(p){
+  S.repProd = p; $('rpProd').value = p.c; $('rpSug').classList.add('oculto');
+  $('rpCard').classList.remove('oculto'); $('rpCard').innerHTML = `<strong>${esc(p.d)}</strong><div class="meta">${esc(p.c)} · ${esc(p.u)}</div>`;
+  $('rpUbic').innerHTML = '<option value="">Consultando…</option>';
+  try {
+    const d = await api('buscar', p.c);
+    const l = d.stock.filter(s => s.e === 'DISPONIBLE' && s.q > 0);
+    $('rpUbic').innerHTML = l.length ? l.map(s => `<option value="${esc(s.u)}">${esc(s.u)} · hay ${fmtN(s.q)} ${esc(p.u)}</option>`).join('') : '<option value="">Sin stock disponible</option>';
+  } catch(e){ $('rpUbic').innerHTML = ''; }
+}
+async function guardarRepuesto(){
+  if (S.ocupado) return;
+  if (!S.repProd){ toast('Elige el producto.', true); return; }
+  S.ocupado = true;
+  try {
+    const r = await api('registrar', {tipo: 'SALIDA', codigo: S.repProd.c, ubicacion: $('rpUbic').value, cantidad: $('rpCant').value, ot: S.repOT, area: 'Mantenimiento'});
+    cerrarModal('mRep'); toast(`✅ ${fmtN(r.cantidad)} ${esc(r.unidad)} de ${esc(r.producto)} para ${esc(S.repOT)}`); cargarMaquinas();
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+  finally { S.ocupado = false; }
+}
+function imprimirPrograma(){
+  const r = S.mant; if (!r) return;
+  const nm = c => (r.maquinas.find(m => m.c === c) || {}).n || c;
+  const ps = r.planes.filter(p => p.act).sort((a, b) => a.dias - b.dias);
+  imprimir(`<h1>Programa de mantenimiento preventivo</h1><div class="sub">Impreso ${new Date().toLocaleString('es-PE')} por ${esc(S.u)}</div>
+    <table><tr><th>Máquina</th><th>Tarea</th><th>Frecuencia</th><th>Último</th><th>Próximo</th><th>Estado</th><th style="width:14%">Hecho (fecha / firma)</th></tr>
+    ${ps.map(p => `<tr><td>${esc(p.maq)} · ${esc(nm(p.maq))}</td><td>${esc(p.tarea)}</td><td>${esc(cadaTxt(p.cada))}</td><td>${esc(p.ult)}</td><td>${esc(p.prox)}</td><td>${esc(ST_PLAN[p.st])} (${esc(txtDias(p.dias))})</td><td></td></tr>`).join('')}</table>
+    <h1 style="margin-top:16px;font-size:15px">Estado de las máquinas</h1>
+    <table><tr><th>Código</th><th>Máquina</th><th>Tipo</th><th>Ubicación</th><th>Estado</th></tr>
+    ${r.maquinas.map(m => `<tr><td>${esc(m.c)}</td><td>${esc(m.n)}</td><td>${esc(m.tipo)}</td><td>${esc(m.ub)}</td><td>${esc(EST_MAQ[m.est].slice(2))}</td></tr>`).join('')}</table>`);
+}
+function imprimirFichaMaquina(){
+  const r = S.maqActual, m = r.maquina, t = r.tot;
+  imprimir(`<h1>Ficha de máquina · ${esc(m.c)} · ${esc(m.n)}</h1>
+    <div class="sub">${[m.tipo, m.mar, m.mod, m.ser && 'Serie ' + m.ser, m.ub && 'Ubicación ' + m.ub, m.fc && 'Compra ' + m.fc, m.prov && 'Proveedor ' + m.prov].filter(Boolean).map(esc).join(' · ')} · Estado: ${esc(EST_MAQ[m.est].slice(2))}</div>
+    <p>Mantenimientos: ${t.ordenes} · Averías: ${t.correctivos} · Días parada este año: ${t.diasParadaAnio} · Costo este año: ${money(t.costoAnio)} · Costo total: ${money(t.costoTotal)}</p>
+    <table><tr><th>Plan preventivo</th><th>Frecuencia</th><th>Último</th><th>Próximo</th></tr>
+    ${r.planes.map(p => `<tr><td>${esc(p.tarea)}</td><td>${esc(cadaTxt(p.cada))}</td><td>${esc(p.ult)}</td><td>${p.act ? esc(p.prox) : 'Inactivo'}</td></tr>`).join('')}</table>
+    <h1 style="margin-top:14px;font-size:15px">Historial de mantenimiento</h1>
+    <table><tr><th>Orden</th><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Motivo</th><th>Trabajo realizado</th><th>Responsable</th><th>Repuestos</th><th class="n">Costo</th></tr>
+    ${r.ordenes.map(o => `<tr><td>${esc(o.id)}</td><td>${o.tipo === 'CORRECTIVO' ? 'Correctivo' : 'Preventivo'}</td><td>${esc(o.ini)}</td><td>${esc(o.fin || 'en curso')}</td><td>${esc(o.planTarea || o.falla)}</td><td>${esc(o.trab)}</td><td>${esc(o.resp)}</td><td>${o.reps.map(x => esc(fmtN(x.q) + ' ' + x.un + ' ' + x.d)).join(', ')}</td><td class="n">${money(o.cs + o.cr)}</td></tr>`).join('')}</table>`);
+}
+
+/* ================= Consumo por área ================= */
+function rangoC(){ const h = new Date(); $('cDesde').value = hoyISO(new Date(h.getFullYear(), h.getMonth(), 1)); $('cHasta').value = hoyISO(h); }
+async function generarConsumoArea(){
+  const out = $('cResultado'); out.innerHTML = '<div class="card ayuda">Calculando…</div>';
+  try {
+    const r = await api('consumoArea', $('cDesde').value, $('cHasta').value); S.ultimoConsumo = r;
+    const max = Math.max(1, r.proyectos.valor, ...r.areas.map(a => a.valor));
+    const barra = (v, color) => `<div style="height:6px;border-radius:3px;background:${color};width:${Math.max(2, v / max * 100)}%;margin-top:4px"></div>`;
+    out.innerHTML = `<div class="card" style="border-color:var(--acc2)"><div class="meta">${esc(r.desde)} al ${esc(r.hasta)}</div>
+      <h3 style="font-size:17px;margin:2px 0 10px">Total consumido: ${money(r.total)}</h3>
+      <div class="item"><div style="display:flex;justify-content:space-between"><b>📁 Proyectos</b><span>${money(r.proyectos.valor)}</span></div><div class="meta">${r.proyectos.n} salidas · detalle en la sección Proyectos</div>${barra(r.proyectos.valor, 'var(--tq)')}</div>
+      ${r.areas.map((a, i) => `<div class="item"><div style="display:flex;justify-content:space-between;cursor:pointer" onclick="$('ca${i}').classList.toggle('oculto')"><b>🏢 ${esc(a.area)}</b><span>${money(a.valor)} ▾</span></div>
+        <div class="meta">${a.n} salidas</div>${barra(a.valor, 'var(--acc2)')}
+        <div id="ca${i}" class="oculto"><table style="margin-top:6px"><tr><th>Producto</th><th class="n">Cant.</th><th class="n">Costo</th></tr>
+        ${a.items.map(x => `<tr><td>${esc(x.d)}<br><small class="meta">${esc(x.c)}</small></td><td class="n">${fmtN(x.q)} ${esc(x.u)}</td><td class="n">${money(x.val)}</td></tr>`).join('')}</table></div></div>`).join('')
+        || '<div class="ayuda">No hubo consumo interno en este periodo.</div>'}
+      <div class="ayuda">Toca un área para ver qué productos usó. Los costos salen del precio registrado en las entradas.</div>
+      <div class="acciones"><button class="btn sm" onclick="imprimirConsumoArea()">🖨️ Imprimir / PDF</button><button class="btn sm" onclick="exportarConsumoArea()">📤 Pasar a hoja (Excel)</button></div></div>`;
+  } catch(e){ out.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
+}
+function imprimirConsumoArea(){
+  const r = S.ultimoConsumo;
+  imprimir(`<h1>Consumo por área</h1><div class="sub">Del ${esc(r.desde)} al ${esc(r.hasta)} · Impreso ${new Date().toLocaleString('es-PE')} por ${esc(S.u)}</div>
+    <table><tr><th>Área</th><th class="n">Salidas</th><th class="n">Costo</th></tr>
+    <tr><td>Proyectos</td><td class="n">${r.proyectos.n}</td><td class="n">${money(r.proyectos.valor)}</td></tr>
+    ${r.areas.map(a => `<tr><td>${esc(a.area)}</td><td class="n">${a.n}</td><td class="n">${money(a.valor)}</td></tr>`).join('')}
+    <tr><td><b>Total</b></td><td></td><td class="n"><b>${money(r.total)}</b></td></tr></table>
+    ${r.areas.map(a => `<h1 style="font-size:14px;margin-top:14px">${esc(a.area)} · ${money(a.valor)}</h1><table><tr><th>Código</th><th>Producto</th><th class="n">Cantidad</th><th>Unidad</th><th class="n">Costo</th></tr>
+      ${a.items.map(x => `<tr><td>${esc(x.c)}</td><td>${esc(x.d)}</td><td class="n">${fmtN(x.q)}</td><td>${esc(x.u)}</td><td class="n">${money(x.val)}</td></tr>`).join('')}</table>`).join('')}`);
+}
+function exportarConsumoArea(){
+  const r = S.ultimoConsumo, filas = [['Proyectos (total)', '', '', '', '', r.proyectos.valor]];
+  r.areas.forEach(a => a.items.forEach(x => filas.push([a.area, x.c, x.d, x.q, x.u, x.val])));
+  exportar(`Consumo por área · ${r.desde} al ${r.hasta}`, ['Área', 'Código', 'Producto', 'Cantidad', 'Unidad', 'Costo'], filas);
+}
+
+/* ================= Escáner ================= */
+const LIB_SCAN = [WEB + 'unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js', WEB + 'cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js'];
+async function libScan(){ if (typeof Html5Qrcode === 'undefined') await cargarScript(LIB_SCAN); }
+async function abrirEscaner(destino){
+  S.scanDestino = destino; S.scanListo = false;
+  abrirModal('mScan'); $('lector').innerHTML = ''; $('scanEstado').textContent = 'Abriendo cámara…';
+  try {
+    await libScan();
+    S.cam = new Html5Qrcode('lector');
+    await S.cam.start({facingMode: 'environment'},
+      {fps: 10, qrbox: (w, h) => ({width: Math.floor(Math.min(w * 0.88, 340)), height: Math.floor(Math.min(h * 0.5, 170))})},
+      txt => resultadoScan(txt), () => {});
+    $('scanEstado').textContent = 'Apunta al código de barras o QR.';
+  } catch(e){
+    S.cam = null; $('lector').innerHTML = '';
+    $('scanEstado').textContent = 'La cámara en vivo no está disponible aquí. Usa "Tomar foto del código".';
+  }
+}
+async function cerrarEscaner(){
+  cerrarModal('mScan');
+  if (S.cam){ try { await S.cam.stop(); S.cam.clear(); } catch(e){} S.cam = null; }
+}
+async function resultadoScan(txt){
+  if (S.scanListo) return; S.scanListo = true;
+  await cerrarEscaner();
+  txt = String(txt).trim(); vibrar(60);
+  const d = S.scanDestino;
+  if (d === 'codigo'){ $('codigo').value = txt; manejarCodigo(txt); }
+  else if (d === 'consulta'){ $('qCodigo').value = txt; consultar(txt); }
+  else if (d === 'kardex'){ $('kCodigo').value = txt; generarKardex(); }
+  else if (d === 'npBar'){ $('npBar').value = txt; }
+  else if (d === 'rpProd'){ $('rpProd').value = txt; const p = S.porCodigo[txt.toUpperCase()]; if (p) elegirRepuesto(p); else toast('Ese código no es un producto registrado.', true); }
+  else {
+    const ub = esUbicacion(txt);
+    if (!ub){ toast('Ese código no es una ubicación: ' + esc(txt), true); return; }
+    $(d).value = ub.c; if (d === 'ubic') guardarLocal('ubic', ub.c); actualizarProductoUI(); toast('📍 ' + esc(ub.c));
+  }
+}
+$('fotoCodigo').addEventListener('change', async ev => {
+  const f = ev.target.files && ev.target.files[0]; ev.target.value = '';
+  if (!f) return;
+  $('scanEstado').textContent = 'Leyendo la foto…';
+  try {
+    if (S.cam){ try { await S.cam.stop(); S.cam.clear(); } catch(e){} S.cam = null; }
+    resultadoScan(await decodificarFoto(f));
+  } catch(e){ $('scanEstado').textContent = 'No se pudo leer el código. Acércate más, con buena luz, y vuelve a intentar.'; }
+});
+async function decodificarFoto(file){
+  if ('BarcodeDetector' in window){
+    try { const r = await new BarcodeDetector().detect(await createImageBitmap(file)); if (r && r.length) return r[0].rawValue; } catch(e){}
+  }
+  await libScan();
+  const h = new Html5Qrcode('lectorArchivo');
+  try { return await h.scanFile(file, false); } finally { try { h.clear(); } catch(e){} }
+}
+
+/* ================= Eventos ================= */
+$('codigo').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); manejarCodigo($('codigo').value); } });
+$('codigo').addEventListener('input', () => {
+  const v = $('codigo').value.trim();
+  if (S.prod && v !== S.prod.c){ S.prod = null; S.det = null; $('prodCard').classList.add('oculto'); actualizarProductoUI(); }
+  if (v.length >= 2 && !/^\d+$/.test(v)) pintarSugerencias($('sugerencias'), buscarLocal(v), elegirProducto); else $('sugerencias').classList.add('oculto');
+});
+$('qCodigo').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); consultar($('qCodigo').value); } });
+$('qCodigo').addEventListener('input', () => {
+  const v = $('qCodigo').value.trim();
+  if (v.length >= 2 && !/^\d+$/.test(v)) pintarSugerencias($('qSug'), buscarLocal(v), p => { $('qCodigo').value = p.c; consultar(p.c); }); else $('qSug').classList.add('oculto');
+});
+$('kCodigo').addEventListener('input', () => {
+  const v = $('kCodigo').value.trim();
+  if (v.length >= 2) pintarSugerencias($('kSug'), buscarLocal(v), p => { $('kCodigo').value = p.c; generarKardex(); }); else $('kSug').classList.add('oculto');
+});
+$('kCodigo').addEventListener('keydown', e => { if (e.key === 'Enter') generarKardex(); });
+$('ubic').addEventListener('change', () => { guardarLocal('ubic', $('ubic').value); actualizarProductoUI(); });
+$('estO').addEventListener('change', () => { autoUbicacion(); actualizarProductoUI(); });
+$('cant').addEventListener('input', pintarEquiv);
+$('pend').addEventListener('change', () => { const x = S.det && S.det.pendientes.find(z => z.id === $('pend').value); if (x){ $('cant').value = x.falta; setPres(false); if (x.resp) $('resp').value = x.resp; if (x.pry) $('pry').value = x.pry; } });
+$('npPres').addEventListener('change', () => { vis('npFacBox', !!$('npPres').value); actualizarLblFac(); });
+$('npUnidad').addEventListener('change', actualizarLblFac);
+$('pin').addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); });
+$('otMaq').addEventListener('change', () => pintarPlanesOT());
+$('rpProd').addEventListener('input', () => { const v = $('rpProd').value.trim(); if (v.length >= 2) pintarSugerencias($('rpSug'), buscarLocal(v), elegirRepuesto); else $('rpSug').classList.add('oculto'); });
+$('rpProd').addEventListener('keydown', e => { if (e.key === 'Enter'){ const p = S.porCodigo[$('rpProd').value.trim().toUpperCase()]; if (p) elegirRepuesto(p); } });
+
+arrancar().catch(e => { const a = $('arranque'); a.style.display = 'block'; a.style.color = '#ff9db3'; a.textContent = '⚠️ ' + e.message; });
+</script>
+</body>
+</html>
