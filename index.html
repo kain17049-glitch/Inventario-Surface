@@ -79,6 +79,14 @@
   .sug img.sf{float:left;width:44px;height:44px;object-fit:cover;border-radius:8px;margin:0 10px 0 0;background:#fff}
   .pfoto{float:right;width:76px;height:76px;object-fit:cover;border-radius:10px;margin:0 0 6px 10px;background:#fff}
   .addFoto{float:right;margin:0 0 6px 10px;width:76px;height:76px;border:1px dashed var(--line2);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--muted);background:transparent}
+  .galx{display:flex;gap:8px;overflow-x:auto;margin:0 0 10px;padding-bottom:4px}
+  .galx figure{margin:0;flex:0 0 96px}.galx img{width:96px;height:96px;object-fit:cover;border-radius:10px;background:#fff;display:block}
+  .galx figcaption{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.25}
+  .fslot{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .fslot .th{width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:22px}
+  .fslot .th img{width:100%;height:100%;object-fit:cover;background:#fff}
+  .fslot .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .detx{margin:8px 0 0;font-size:14px;line-height:1.5}.detx b{color:#fff}
   .ffoto{display:block;width:100%;max-height:260px;object-fit:contain;border-radius:12px;background:#fff;margin:0 0 10px}
   .prod{background:var(--card2);border:1px solid var(--line2);border-radius:12px;padding:11px 12px;margin-top:8px}
   .prod strong{display:block}.meta{font-size:12.5px;color:var(--muted)}
@@ -294,6 +302,7 @@
       <div class="acciones">
         <button class="btn sm" onclick="verPendientes()">🤝 En uso / préstamos</button>
         <button class="btn sm" onclick="verStockBajo()">⚠️ Stock bajo</button>
+        <button class="btn sm" onclick="verSinMovimiento(60, true)">💤 Sin movimiento</button>
         <button class="btn sm" onclick="verEstado('REVISION')">🔧 Revisión técnica</button>
         <button class="btn sm" onclick="verEstado('VENTA')">🏷️ Para venta</button>
         <button class="btn sm" onclick="verHistorial()">🕘 Historial</button>
@@ -431,6 +440,24 @@
 </div></div>
 
 <!-- Máquina nueva / editar -->
+<div id="mFotos" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="fxTitulo" style="margin:0">Fotos</h3><button class="btn sm" onclick="cerrarModal('mFotos')">Cerrar</button></div>
+  <div class="ayuda">La <b>principal</b> sale en las sugerencias y al registrar. Las <b>extra</b> son opcionales: placa con serie, medidas, accesorios, estado… Cada una puede llevar una nota.</div>
+  <div id="fxSlots"></div>
+  <button class="btn pri big" onclick="guardarNotasFotos()">Guardar notas</button>
+</div></div>
+<div id="mDet" class="modal oculto"><div class="caja">
+  <div class="cab"><h3 id="dtTitulo" style="margin:0">Datos adicionales</h3><button class="btn sm" onclick="cerrarModal('mDet')">Cerrar</button></div>
+  <div class="ayuda">Todo es opcional. Sirve para ofrecer muebles y equipos sin tener que ir a verlos.</div>
+  <label for="dtMed">Medidas (largo × ancho × alto)</label><input id="dtMed" placeholder="Ej. 120 × 60 × 75 cm">
+  <div class="fila">
+    <div><label for="dtPeso">Peso</label><input id="dtPeso" placeholder="Ej. 12 kg"></div>
+    <div><label for="dtEf">Estado físico</label><select id="dtEf"><option value="">—</option><option>Nuevo</option><option>Bueno</option><option>Regular</option><option>Malo</option></select></div>
+  </div>
+  <label for="dtCol">Color / material</label><input id="dtCol" placeholder="Ej. Melamina blanca, patas de metal">
+  <label for="dtResp">Responsable</label><input id="dtResp" placeholder="Quién lo tiene a cargo">
+  <button class="btn pri big" onclick="guardarDetUI()">Guardar</button>
+</div></div>
 <div id="mMaq" class="modal oculto"><div class="caja">
   <div class="cab"><h3 id="mqTitulo" style="margin:0">Nueva máquina</h3><button class="btn sm" onclick="cerrarModal('mMaq')">Cerrar</button></div>
   <label for="mqNombre">Nombre *</label><input id="mqNombre" placeholder="Ej. Impresora ecosolvente 1.60 m">
@@ -440,7 +467,7 @@
   </div>
   <datalist id="tiposMaq"><option>Impresora</option><option>Láser / grabadora</option><option>Router CNC</option><option>Cortadora</option>
     <option>Plotter de corte</option><option>Laminadora</option><option>Dobladora / termoformado</option><option>Compresora</option>
-    <option>Soldadora</option><option>Sierra / mesa de corte</option><option>Vehículo</option><option>Otro</option></datalist>
+    <option>Soldadora</option><option>Sierra / mesa de corte</option><option>Herramienta eléctrica</option><option>Herramienta manual</option><option>Vehículo</option><option>Otro</option></datalist>
   <div class="fila">
     <div><label for="mqMarca">Marca</label><input id="mqMarca"></div>
     <div><label for="mqModelo">Modelo</label><input id="mqModelo"></div>
@@ -449,6 +476,7 @@
     <div><label for="mqSerie">N° de serie</label><input id="mqSerie"></div>
     <div><label for="mqCompra">Fecha de compra</label><input id="mqCompra" type="date"></div>
   </div>
+  <label for="mqResp">Responsable</label><input id="mqResp" placeholder="Quién la tiene a cargo">
   <label for="mqProv">Proveedor / técnico de confianza</label><input id="mqProv" placeholder="Nombre y teléfono">
   <div id="mqEstadoBox" class="oculto"><label for="mqEstado">Estado</label>
     <select id="mqEstado"><option value="OPERATIVA">🟢 Operativa</option><option value="MANTENIMIENTO">🟡 En mantenimiento</option>
@@ -532,7 +560,7 @@
   <button class="btn peligro big" onclick="salir()">Cerrar sesión</button>
 </div></div>
 
-<script src="offline.js?v=2.4.3"></script>
+<script src="offline.js?v=2.5.0"></script>
 <script>
 /* ================= Configuración de tipos ================= */
 const BARRA = String.fromCharCode(47);
@@ -826,12 +854,78 @@ function pintarFotoProd(){
   const el = $('prodFoto'); if (!el || !S.prod) return;
   const c = S.prod.c, f = fotoDe(c);
   el.innerHTML = f ? `<img class="pfoto" src="${f}" alt="" onclick="verFoto('${esc(c)}')">`
-    : `<button class="addFoto" onclick="pedirFoto('${esc(c)}')"><span style="font-size:22px">📷</span>Agregar foto</button>`;
+    : `<button class="addFoto" onclick="abrirFotos('${esc(c)}')"><span style="font-size:22px">📷</span>Agregar foto</button>`;
 }
 /** Después de tomar una foto: refresca donde se ve */
 function trasFoto(c){
   if (S.prod && S.prod.c === c) pintarFotoProd();
+  if (!$('mFotos').classList.contains('oculto') && S.fxCod === c) pintarSlots();
+  refrescarFicha(c);
+}
+function refrescarFicha(c){
   if ($('vConsultar').classList.contains('on') && S.qCod === c) consultar(c);
+  if (S.maqActual && S.maqActual.maquina.c === c && $('mDetalle').innerHTML) verMaquina(c);
+}
+function nFotos(c){ return (fotoDe(c) ? 1 : 0) + fotosExtra(c).filter(x => x.url).length; }
+/** Tira de fotos extra con su nota */
+function htmlGaleria(c){
+  const ex = fotosExtra(c).filter(x => x.url);
+  return ex.length ? `<div class="galx">${ex.map(x => `<figure><img src="${x.url}" alt="" onclick="verFoto('${esc(x.k)}')">${x.nota ? `<figcaption>${esc(x.nota)}</figcaption>` : ''}</figure>`).join('')}</div>` : '';
+}
+function htmlDet(c){
+  const d = detDe(c);
+  const l = [d.med && '📐 <b>' + esc(d.med) + '</b>', d.peso && '⚖️ ' + esc(d.peso), d.col && '🎨 ' + esc(d.col), d.ef && '🩺 ' + esc(d.ef), d.resp && '👤 ' + esc(d.resp)].filter(Boolean);
+  return l.length ? `<div class="detx">${l.join(' · ')}</div>` : '';
+}
+function abrirFotos(c){
+  S.fxCod = c;
+  const p = prodLocal(c), mq = S.mant && S.mant.maquinas.find(x => x.c === c);
+  $('fxTitulo').textContent = '📷 ' + c + ' · ' + ((p && p.d) || (mq && mq.n) || '').slice(0, 40);
+  pintarSlots(); abrirModal('mFotos');
+}
+function pintarSlots(){
+  const c = S.fxCod, ex = fotosExtra(c), pr = fotoDe(c);
+  const slot = (k, url, titulo, nota, n) => `<div class="fslot"><div class="th">${url ? `<img src="${url}" onclick="verFoto('${esc(k)}')">` : '📷'}</div>
+    <div><b>${titulo}</b>${n ? `<input id="fxN${n}" value="${esc(nota)}" placeholder="Nota (opcional): placa, medidas, detalle…" style="margin-top:4px">` : ''}
+    <div class="bt"><button class="btn sm" data-k="${esc(k)}" onclick="pedirFoto(this.dataset.k,'camara')">📷 Cámara</button>
+      <button class="btn sm" data-k="${esc(k)}" onclick="pedirFoto(this.dataset.k,'galeria')">🖼️ Galería</button>
+      ${url ? `<button class="btn sm peligro" data-k="${esc(k)}" onclick="quitarFotoLocal(this.dataset.k)">🗑️</button>` : ''}</div></div></div>`;
+  $('fxSlots').innerHTML = slot(c, pr, 'Principal', '', 0) + ex.map(x => slot(x.k, x.url, 'Extra ' + x.n, x.nota, x.n)).join('');
+}
+async function guardarNotasFotos(){
+  const c = S.fxCod, ant = detDe(c).nf || {}, nf = {}; let cambio = false;
+  [1, 2, 3, 4].forEach(n => { const v = ($('fxN' + n).value || '').trim(); nf[n] = v; if (v !== (ant[n] || '')) cambio = true; });
+  if (cambio){ await api('guardarDetalle', c, {nf: nf}); toast('✅ Notas guardadas'); }
+  cerrarModal('mFotos'); refrescarFicha(c);
+}
+function abrirDet(c){
+  S.dtCod = c; const d = detDe(c);
+  $('dtTitulo').textContent = '📋 ' + c;
+  $('dtMed').value = d.med || ''; $('dtPeso').value = d.peso || ''; $('dtCol').value = d.col || ''; $('dtEf').value = d.ef || ''; $('dtResp').value = d.resp || '';
+  abrirModal('mDet');
+}
+async function guardarDetUI(){
+  const c = S.dtCod;
+  try {
+    await api('guardarDetalle', c, {med: $('dtMed').value.trim(), peso: $('dtPeso').value.trim(), col: $('dtCol').value.trim(), ef: $('dtEf').value, resp: $('dtResp').value.trim()});
+    cerrarModal('mDet'); toast('✅ Datos guardados'); refrescarFicha(c);
+  } catch(e){ toast('⚠️ ' + esc(e.message), true); }
+}
+/** Equipos y muebles con stock que no se mueven hace N días: para ofrecerlos o darlos de baja */
+async function verSinMovimiento(dias, solo){
+  const out = $('qResultado'); out.innerHTML = '<div class="card ayuda">Consultando…</div>';
+  try {
+    const l = await api('sinMovimiento', dias, solo);
+    const bt = (d, sl, t) => `<button class="btn sm ${d === dias && sl === solo ? 'pri' : ''}" onclick="verSinMovimiento(${d}, ${sl})">${t}</button>`;
+    out.innerHTML = `<div class="card"><h3>💤 Sin movimiento hace más de ${dias} días (${l.length})</h3>
+      <div class="acciones">${bt(30, solo, '30 d')}${bt(60, solo, '60 d')}${bt(90, solo, '90 d')}${bt(dias, !solo, solo ? 'Ver todo' : 'Solo activos')}</div>
+      <div class="ayuda">${solo ? 'Activos fijos, tecnología, mobiliario y herramientas.' : 'Todos los productos con stock.'} Ordenado del más olvidado al más reciente.</div>
+      ${l.map(x => `<div class="item" style="cursor:pointer" data-c="${esc(x.c)}" onclick="$('qCodigo').value=this.dataset.c;consultar(this.dataset.c)">
+        ${fotoDe(x.c) ? `<img src="${fotoDe(x.c)}" style="float:left;width:52px;height:52px;object-fit:cover;border-radius:8px;margin-right:10px;background:#fff">` : ''}
+        <div class="top"><span>${esc(x.c)}${x.af ? ' · <b>activo fijo</b>' : ''}</span><span>${fmtN(x.q)} ${esc(x.u)}</span></div>
+        <div>${esc(x.d)}</div><div class="meta">${x.dias === null ? 'Sin movimientos (solo conteo)' : 'Último movimiento: ' + esc(x.ult) + ' · hace ' + x.dias + ' días'}${x.cp ? ' · ' + money(x.cp * x.q) : ''}</div>
+        <div style="clear:both"></div></div>`).join('') || '<div class="ayuda">Nada olvidado. 👌</div>'}</div>`;
+  } catch(e){ out.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
 }
 /** Stock justo encima de la cantidad: en la ubicación elegida y en total */
 function pintarStockAqui(){
@@ -1046,7 +1140,7 @@ async function consultar(txt){
     }
     const p = r.producto; S.qCod = p.c;
     const foto = fotoDe(p.c);
-    out.innerHTML = `<div class="card">${foto ? `<img class="ffoto" src="${foto}" alt="" onclick="verFoto('${esc(p.c)}')">` : ''}<div class="meta">${esc(p.c)} · ${esc(p.fam)}${p.cla ? ' · ' + esc(p.cla) : ''}${p.mar ? ' · ' + esc(p.mar) : ''}${p.act === false ? ' · <b>INACTIVO</b>' : ''}</div>
+    out.innerHTML = `<div class="card">${foto ? `<img class="ffoto" src="${foto}" alt="" onclick="verFoto('${esc(p.c)}')">` : ''}${htmlGaleria(p.c)}<div class="meta">${esc(p.c)} · ${esc(p.fam)}${p.cla ? ' · ' + esc(p.cla) : ''}${p.mar ? ' · ' + esc(p.mar) : ''}${p.act === false ? ' · <b>INACTIVO</b>' : ''}</div>
       <h3 style="font-size:18px;margin:2px 0 8px">${esc(p.d)}</h3>
       <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin:0 0 8px">
         <div class="kpi"><div class="v">${fmtN(r.tot.DISPONIBLE)}</div><div class="l">Disponible</div></div>
@@ -1058,9 +1152,11 @@ async function consultar(txt){
       <table style="margin-top:8px"><tr><th>Ubicación</th><th class="n">Cant.</th></tr>
       ${r.stock.map(s => `<tr><td>${esc(s.u)}${s.e !== 'DISPONIBLE' ? ' <span class="badge ' + esc(s.e) + '">' + esc(EST[s.e]) + '</span>' : ''}<br><small class="meta">${esc(s.a)}</small></td><td class="n">${fmtN(s.q)}</td></tr>`).join('') || '<tr><td colspan="2" class="meta">Sin stock</td></tr>'}</table>
       <div class="meta" style="margin-top:8px">📉 Consumo: <b style="color:#fff">${fmtN(r.consumoMes)}</b> ${esc(p.u)}/mes (90 días)${r.consumoMes > 0 ? ` · alcanza ~<b style="color:#fff">${fmtN(Math.floor(r.tot.DISPONIBLE / r.consumoMes * 10) / 10)}</b> meses` : ''}${p.cp ? ` · Valor: <b style="color:#fff">${money(r.valor)}</b> (${money(p.cp)} c/${esc(p.u)})` : ''}</div>
+      ${htmlDet(p.c)}
       ${r.pendientes.length ? `<div style="margin-top:10px"><h3>🤝 En uso / prestado</h3>${r.pendientes.map(htmlPendiente).join('')}</div>` : ''}
       <div class="acciones"><button class="btn sm" data-c="${esc(p.c)}" onclick="abrirEditarProducto(this.dataset.c)">✏️ Editar datos</button>
-        <button class="btn sm" data-c="${esc(p.c)}" onclick="pedirFoto(this.dataset.c)">📷 ${foto ? 'Cambiar foto' : 'Agregar foto'}</button>
+        <button class="btn sm" data-c="${esc(p.c)}" onclick="abrirFotos(this.dataset.c)">📷 Fotos (${nFotos(p.c)})</button>
+        <button class="btn sm" data-c="${esc(p.c)}" onclick="abrirDet(this.dataset.c)">📋 Datos adicionales</button>
         <button class="btn sm" data-c="${esc(p.c)}" onclick="kardexDe(this.dataset.c)">📒 Kardex</button></div></div>
       <div class="card"><h3>Últimos movimientos</h3>${r.ultimos.map(m => htmlMov(m, true)).join('') || '<div class="ayuda">Ninguno.</div>'}</div>`;
   } catch(e){ out.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
@@ -1268,7 +1364,7 @@ async function cargarMaquinas(){
     const activas = r.maquinas.filter(m => m.est !== 'BAJA'), baja = r.maquinas.filter(m => m.est === 'BAJA');
     $('mLista').innerHTML = r.maquinas.length ? activas.concat(baja).map(m => `<div class="item" style="cursor:pointer" data-c="${esc(m.c)}" onclick="verMaquina(this.dataset.c)">
       <div class="top"><span>${esc(m.c)}${m.tipo ? ' · ' + esc(m.tipo) : ''}</span><span class="badge ${m.est}">${esc(EST_MAQ[m.est])}</span></div>
-      <div><b>${esc(m.n)}</b></div>
+      <div><b>${esc(m.n)}</b>${detDe(m.c).resp ? ` <span class="meta">· 👤 ${esc(detDe(m.c).resp)}</span>` : ''}</div>
       <div class="meta">${m.prox ? `Próximo: ${esc(m.prox.tarea)} · ${esc(m.prox.prox)} (${esc(txtDias(m.prox.dias))})` : (m.est === 'BAJA' ? 'Sin planes' : 'Sin plan preventivo · tócala para agregar uno')}</div></div>`).join('')
       : '<div class="ayuda">Aún no hay máquinas. Pulsa “＋ Nueva máquina”.</div>';
   } catch(e){ $('mLista').innerHTML = `<div class="aviso error">${esc(e.message)}</div>`; }
@@ -1280,9 +1376,11 @@ async function verMaquina(c){
     const m = r.maquina, t = r.tot;
     box.innerHTML = `<div class="card" style="border-color:var(--acc2)">
       <div class="top meta"><span>${esc(m.c)}${m.tipo ? ' · ' + esc(m.tipo) : ''}</span> <span class="badge ${m.est}">${esc(EST_MAQ[m.est])}</span></div>
+      ${fotoDe(m.c) ? `<img class="ffoto" src="${fotoDe(m.c)}" alt="" onclick="verFoto('${esc(m.c)}')">` : ''}${htmlGaleria(m.c)}
       <h3 style="font-size:18px;margin:4px 0">${esc(m.n)}</h3>
       <div class="meta">${[m.mar, m.mod, m.ser && 'Serie ' + m.ser, m.ub && '📍 ' + m.ub, m.fc && 'Compra ' + m.fc, m.prov && '🧰 ' + m.prov].filter(Boolean).map(esc).join(' · ')}</div>
       ${m.notas ? `<div class="meta">📝 ${esc(m.notas)}</div>` : ''}
+      ${htmlDet(m.c)}
       <div class="kpis" style="margin:10px 0 0;grid-template-columns:repeat(3,1fr)">
         <div class="kpi"><div class="v">${t.ordenes}</div><div class="l">Mantenimientos</div></div>
         <div class="kpi"><div class="v">${t.correctivos}</div><div class="l">Averías</div></div>
@@ -1303,20 +1401,22 @@ async function verMaquina(c){
         ${o.reps.length ? `<div class="meta">🔩 ${o.reps.map(x => esc(fmtN(x.q) + ' ' + x.un + ' ' + x.d)).join(', ')}</div>` : ''}</div>`).join('') : '<div class="ayuda">Sin mantenimientos registrados.</div>'}
       <div class="acciones">
         <button class="btn sm" onclick="editarMaquinaUI()">✏️ Editar datos</button>
+        <button class="btn sm" data-c="${esc(m.c)}" onclick="abrirFotos(this.dataset.c)">📷 Fotos (${nFotos(m.c)})</button>
+        <button class="btn sm" data-c="${esc(m.c)}" onclick="abrirDet(this.dataset.c)">📋 Datos adicionales</button>
         <button class="btn sm" onclick="imprimirFichaMaquina()">🖨️ Imprimir ficha</button>
         <button class="btn sm" onclick="$('mDetalle').innerHTML=''">✕</button></div></div>`;
   } catch(e){ box.innerHTML = `<div class="card aviso error">${esc(e.message)}</div>`; }
 }
 function abrirMaquina(){
   S.editMaq = null; $('mqTitulo').textContent = 'Nueva máquina'; $('mqGuardar').textContent = 'Crear máquina';
-  ['mqNombre', 'mqTipo', 'mqMarca', 'mqModelo', 'mqSerie', 'mqCompra', 'mqProv', 'mqNotas'].forEach(i => $(i).value = '');
+  ['mqNombre', 'mqTipo', 'mqMarca', 'mqModelo', 'mqSerie', 'mqCompra', 'mqProv', 'mqNotas', 'mqResp'].forEach(i => $(i).value = '');
   $('mqUbic').value = ''; vis('mqEstadoBox', false); abrirModal('mMaq'); setTimeout(() => $('mqNombre').focus(), 60);
 }
 function editarMaquinaUI(){
   const m = S.maqActual.maquina; S.editMaq = m.c;
   $('mqTitulo').textContent = 'Editar ' + m.c; $('mqGuardar').textContent = 'Guardar cambios';
   $('mqNombre').value = m.n; $('mqTipo').value = m.tipo; $('mqMarca').value = m.mar; $('mqModelo').value = m.mod; $('mqSerie').value = m.ser;
-  $('mqCompra').value = m.fc; $('mqProv').value = m.prov; $('mqNotas').value = m.notas; $('mqUbic').value = m.ub; $('mqEstado').value = m.est;
+  $('mqCompra').value = m.fc; $('mqProv').value = m.prov; $('mqResp').value = detDe(m.c).resp || ''; $('mqNotas').value = m.notas; $('mqUbic').value = m.ub; $('mqEstado').value = m.est;
   vis('mqEstadoBox', true); abrirModal('mMaq');
 }
 async function guardarMaquina(){
@@ -1325,6 +1425,8 @@ async function guardarMaquina(){
     ubicacion: $('mqUbic').value, fechaCompra: $('mqCompra').value, proveedor: $('mqProv').value, notas: $('mqNotas').value, estado: S.editMaq ? $('mqEstado').value : ''};
   try {
     const m = S.editMaq ? await api('editarMaquina', S.editMaq, d) : await api('crearMaquina', d);
+    const resp = $('mqResp').value.trim();
+    if (resp !== (detDe(m.c).resp || '')) await api('guardarDetalle', m.c, {resp: resp});
     cerrarModal('mMaq'); toast('✅ ' + (S.editMaq ? 'Guardado: ' : 'Máquina creada: ') + esc(m.c));
     await cargarMaquinas(); verMaquina(m.c);
     if (!S.editMaq) setTimeout(() => nuevoPlan(m.c), 400);

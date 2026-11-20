@@ -5,10 +5,10 @@
  * en segundo plano. Sin señal, espera y se sube solo cuando vuelve.
  */
 const API_URL = 'https:' + String.fromCharCode(47, 47) + 'script.google.com/macros/s/AKfycbyXNamoz37LfEsn67XloeSKID490RBDJtJO9ZrYTswXYtp4bqABtJDuyFGOwMFijaoVLA/exec';
-const APP_VER = '2.4.3';
-const OFF = { en: true, snap: null, ST: {}, TOT: {}, FOTOS: {}, FT: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
+const APP_VER = '2.5.0';
+const OFF = { en: true, snap: null, ST: {}, TOT: {}, FOTOS: {}, FT: {}, DET: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
 const LECTURAS = ['historial', 'porEstado', 'stockBajo', 'pendientes', 'listaProyectos', 'resumenProyecto', 'kardex',
-                  'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea'];
+                  'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea', 'sinMovimiento'];
 
 /* ---------- Guardado en el celular ---------- */
 function lsGet(k){ try { const v = localStorage.getItem('inv3_' + k); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
@@ -234,7 +234,9 @@ function cambiarCodigo(tmp, real){
     if (o.m && o.m.codigo === tmp) o.m.codigo = real;
     (o.efs || []).forEach(e => { if (e[0] === tmp) e[0] = real; });
   });
-  if (OFF.FOTOS[tmp]){ OFF.FOTOS[real] = OFF.FOTOS[tmp]; delete OFF.FOTOS[tmp]; idbPut(real, OFF.FOTOS[real]); idbDel(tmp); }
+  Object.keys(OFF.FOTOS).filter(k => k.split('#')[0] === tmp).forEach(k => { const nk = real + k.slice(tmp.length); OFF.FOTOS[nk] = OFF.FOTOS[k]; delete OFF.FOTOS[k]; idbPut(nk, OFF.FOTOS[nk]); idbDel(k); });
+  OFF.cola.forEach(o => { if ((o.k === 'FOTO' || o.k === 'DET') && o.c.split('#')[0] === tmp) o.c = real + o.c.slice(tmp.length); });
+  if (OFF.DET[tmp]){ OFF.DET[real] = OFF.DET[tmp]; delete OFF.DET[tmp]; }
   if (S.prod && S.prod.c === tmp){ S.prod = Object.assign({}, S.prod, {c: real, tmp: false}); const c = document.getElementById('codigo'); if (c && c.value === tmp) c.value = real; }
   toast('☁️ Producto nuevo subido: ' + esc(tmp) + ' → <b>' + esc(real) + '</b>');
 }
@@ -250,6 +252,7 @@ async function sincronizarCola(manual){
     const lote = pend.slice(0, 15);
     const r = await remoto('sincronizar', [S.u, S.pin, lote.map(o => o.k === 'CREAR' ? {opid: o.opid, ms: o.ms, k: 'CREAR', d: o.d, tmp: o.c}
                                                        : o.k === 'FOTO' ? {opid: o.opid, ms: o.ms, k: 'FOTO', c: o.c, data: o.data}
+                                                       : o.k === 'DET' ? {opid: o.opid, ms: o.ms, k: 'DET', c: o.c, d: o.d}
                                                        : {opid: o.opid, ms: o.ms, m: o.m}), dispositivo()], 180000);
     const porId = {}; r.res.forEach(x => porId[x.opid] = x);
     r.res.forEach(x => { if (x.ok && x.tmp && x.cod) cambiarCodigo(x.tmp, x.cod); });
@@ -259,7 +262,7 @@ async function sincronizarCola(manual){
       if (x.ok){ ok++; return false; }
       o.est = 'error'; o.error = x.error; err++; return true;
     });
-    lote.forEach(o => { if (o.k === 'FOTO' && porId[o.opid] && porId[o.opid].ok && r.snap.fotos && r.snap.fotos[o.c]) { OFF.FT[o.c] = r.snap.fotos[o.c]; lsSet('fotoT', OFF.FT); } });
+    lote.forEach(o => { if (o.k === 'FOTO' && porId[o.opid] && porId[o.opid].ok && r.snap.fotos){ if (r.snap.fotos[o.c]) OFF.FT[o.c] = r.snap.fotos[o.c]; else delete OFF.FT[o.c]; lsSet('fotoT', OFF.FT); } });
     guardarCola(); guardarSnap(r.snap); recalcLocal(); aplicarSnap(r.snap);
     if (err) toast(`⚠️ ${err} movimiento(s) no se pudieron guardar. Toca <b>⚠️</b> arriba para revisarlos.`, true);
     else if (manual) toast(`☁️ ${ok} movimiento(s) subidos a la hoja.`);
@@ -290,6 +293,7 @@ function aplicarSnap(sn){
   indexar();
   try { pintarProyectosSelect(); } catch(e){}
   bajarFotos(sn);
+  armarDetalles(sn);
   if (S.prod){ const np = S.productos.find(p => p.c === S.prod.c); if (np) S.prod = np; }
 }
 
@@ -304,6 +308,7 @@ async function rutaApi(fn, args){
     }
     return crearProductoOffline(args[0]);
   }
+  if (fn === 'guardarDetalle') return guardarDetalleLocal(args[0], args[1]);
   if (fn === 'iniciar'){
     const sn = await refrescarSnap(false);
     if (sn) return sn;
@@ -347,7 +352,7 @@ async function offEntrar(u, pin){
   try {
     const sn = await remoto('snapshot', [u, pin]);
     lsSet('h_' + sn.usuario.toUpperCase(), await hashPin(sn.usuario, pin));
-    guardarSnap(sn); OFF.cola = lsGet('cola') || []; recalcLocal();
+    guardarSnap(sn); OFF.cola = lsGet('cola') || []; recalcLocal(); armarDetalles(sn);
     setTimeout(() => bajarFotos(sn), 1500);
     return sn;
   } catch(e){
@@ -384,9 +389,9 @@ function pintarPanelSync(){
   $('syEstado').innerHTML = `${est}<br><small>Datos del ${esc((OFF.snap && OFF.snap.ts) || '—')}${OFF.tSnap ? ' (' + hace(OFF.tSnap) + ')' : ''} · app ${APP_VER} · <a href="#" onclick="actualizarApp();return false" style="color:#cfc6ff">buscar actualización</a></small>` +
     (otros ? `<div class="aviso">Hay ${otros} movimiento(s) de otro usuario en este celular. Se subirán cuando esa persona entre.</div>` : '');
   $('syLista').innerHTML = mias.length ? mias.slice().reverse().map(o => {
-    const T = o.k === 'CREAR' ? {t: 'Producto nuevo'} : o.k === 'FOTO' ? {t: '📷 Foto'} : (TIPOS[o.m.tipo] || {t: o.m.tipo});
+    const T = o.k === 'CREAR' ? {t: 'Producto nuevo'} : o.k === 'FOTO' ? {t: o.data ? '📷 Foto' : '🗑️ Quitar foto'} : o.k === 'DET' ? {t: '📋 Datos adicionales'} : (TIPOS[o.m.tipo] || {t: o.m.tipo});
     return `<div class="item"><div class="top"><span><span class="badge ${o.m.tipo}">${esc(T.t)}</span> ${o.est === 'error' ? '<span class="badge SALIDA">Error</span>' : '<span class="badge">Por subir</span>'}</span><span>${esc(fechaCorta(new Date(o.ms)))}</span></div>
-      <div>${o.k === 'FOTO' ? `${esc(o.c)} · ${esc((prodLocal(o.c) || {}).d || '')}` : o.k === 'CREAR' ? `<b class="tmpCod">${esc(o.c)}</b> · ${esc(o.p.d)}` : `<b>${fmtN(o.q)} ${esc(o.un)}</b> · ${esc(o.d)}`}</div><div class="meta">${esc(o.m.ubicacion)}${o.m.destino ? ' → ' + esc(o.m.destino) : ''}</div>
+      <div>${o.k === 'FOTO' || o.k === 'DET' ? `${esc(o.c)} · ${esc((prodLocal(o.c.split('#')[0]) || {}).d || '')}` : o.k === 'CREAR' ? `<b class="tmpCod">${esc(o.c)}</b> · ${esc(o.p.d)}` : `<b>${fmtN(o.q)} ${esc(o.un)}</b> · ${esc(o.d)}`}</div><div class="meta">${esc(o.m.ubicacion)}${o.m.destino ? ' → ' + esc(o.m.destino) : ''}</div>
       ${o.est === 'error' ? `<div class="aviso error">${esc(o.error)}</div><div class="fila" style="margin-top:8px"><button class="btn sm" onclick="reintentarOp('${o.opid}')">Reintentar</button> <button class="btn sm peligro" onclick="descartarOp('${o.opid}')">Descartar</button></div>` : ''}</div>`;
   }).join('') : '<div class="ayuda">✓ No hay nada pendiente: todo está en la hoja.</div>';
 }
@@ -399,7 +404,8 @@ function descartarOp(id){
 /* ---------- Arranque de la capa ---------- */
 function iniciarCapaOffline(){
   OFF.FT = lsGet('fotoT') || {}; cargarFotosLocal();
-  OFF.snap = lsGet('snap'); OFF.tSnap = lsGet('tSnap') || 0; OFF.cola = lsGet('cola') || [];
+  OFF.snap = lsGet('snap');
+  try { OFF.cola = lsGet('cola') || []; armarDetalles(OFF.snap); } catch(e){} OFF.tSnap = lsGet('tSnap') || 0; OFF.cola = lsGet('cola') || [];
   OFF.en = navigator.onLine !== false;
   window.addEventListener('online', () => { OFF.en = true; pintarChipSync(); programarSync(500); });
   window.addEventListener('offline', () => { OFF.en = false; pintarChipSync(); });
@@ -464,6 +470,8 @@ function fotoDe(c){ return OFF.FOTOS[c] || ''; }
 async function bajarFotos(sn){
   if (!sn || !sn.fotos || OFF.bajandoFotos || !OFF.en) return;
   const pend = OFF.cola.filter(o => o.k === 'FOTO').map(o => o.c);
+  Object.keys(OFF.FOTOS).filter(c => !sn.fotos[c] && OFF.FT[c] && pend.indexOf(c) < 0).forEach(c => { delete OFF.FOTOS[c]; delete OFF.FT[c]; idbDel(c); });
+  lsSet('fotoT', OFF.FT);
   const faltan = Object.keys(sn.fotos).filter(c => OFF.FT[c] !== sn.fotos[c] && pend.indexOf(c) < 0);
   if (!faltan.length) return;
   OFF.bajandoFotos = true;
@@ -498,20 +506,59 @@ async function comprimirFoto(file){
     return out;
   } finally { URL.revokeObjectURL(url); }
 }
-let _fotoPara = '';
-function pedirFoto(c){
+let _fotoPara = '', _fotoCb = null;
+/** fuente: 'camara' abre la cámara directo; 'galeria' abre las fotos guardadas. cb(file) opcional */
+function pedirFoto(c, fuente, cb){
   if (!c) return;
-  _fotoPara = c;
-  let inp = document.getElementById('inpFotoRef');
+  if (!fuente){ abrirFotos(c); return; }
+  _fotoPara = c; _fotoCb = cb || null;
+  const id = fuente === 'camara' ? 'inpFotoCam' : 'inpFotoRef';
+  let inp = document.getElementById(id);
   if (!inp){
-    inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'inpFotoRef'; inp.style.display = 'none';
+    inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.id = id; inp.style.display = 'none';
+    if (fuente === 'camara') inp.setAttribute('capture', 'environment');
     inp.addEventListener('change', async ev => {
       const f = ev.target.files && ev.target.files[0]; ev.target.value = '';
-      if (f) await guardarFotoLocal(_fotoPara, f);
+      if (!f) return;
+      if (_fotoCb) _fotoCb(f); else await guardarFotoLocal(_fotoPara, f);
     });
     document.body.appendChild(inp);
   }
   inp.click();
+}
+/** Quita una foto (extra o principal) */
+function quitarFotoLocal(c){
+  delete OFF.FOTOS[c]; idbDel(c);
+  OFF.cola = OFF.cola.filter(o => !(o.k === 'FOTO' && o.c === c && o.est !== 'enviando'));
+  OFF.cola.push({opid: nuevoOpid(), ms: Date.now(), u: S.u, k: 'FOTO', c: c, data: '', m: {tipo: 'FOTO', ubicacion: ''}, un: '', q: 0, efs: [], est: 'pendiente', error: ''});
+  guardarCola(); programarSync(400);
+  try { trasFoto(c.split('#')[0]); } catch(e){}
+}
+/** Fotos extra de un código: [{k:'COD#1', n:1, url, nota}] */
+function fotosExtra(c){
+  const nf = (detDe(c).nf) || {};
+  return [1, 2, 3, 4].map(n => ({k: c + '#' + n, n: n, url: OFF.FOTOS[c + '#' + n] || '', nota: nf[n] || ''}));
+}
+
+/* ---------- Datos adicionales (medidas, peso, color, estado físico, responsable) ---------- */
+function armarDetalles(sn){
+  const d = Object.assign({}, (sn && sn.det) || {});
+  OFF.cola.filter(o => o.k === 'DET').forEach(o => { d[o.c] = mezclarDet(d[o.c], o.d); });
+  OFF.DET = d;
+}
+function mezclarDet(prev, nd){
+  const r = Object.assign({med: '', peso: '', col: '', ef: '', resp: '', nf: {}}, prev || {});
+  ['med', 'peso', 'col', 'ef', 'resp'].forEach(k => { if (nd[k] !== undefined) r[k] = nd[k]; });
+  r.nf = Object.assign({}, r.nf);
+  if (nd.nf) Object.keys(nd.nf).forEach(k => { if (nd.nf[k]) r.nf[k] = nd.nf[k]; else delete r.nf[k]; });
+  return r;
+}
+function detDe(c){ return OFF.DET[c] || {med: '', peso: '', col: '', ef: '', resp: '', nf: {}}; }
+function guardarDetalleLocal(c, d){
+  OFF.DET[c] = mezclarDet(OFF.DET[c], d);
+  OFF.cola.push({opid: nuevoOpid(), ms: Date.now(), u: S.u, k: 'DET', c: c, d: d, m: {tipo: 'DET', ubicacion: ''}, un: '', q: 0, efs: [], est: 'pendiente', error: ''});
+  guardarCola(); programarSync(400);
+  return {c: c, det: OFF.DET[c]};
 }
 async function guardarFotoLocal(c, file){
   try {
@@ -523,7 +570,7 @@ async function guardarFotoLocal(c, file){
                    un: '', q: 0, efs: [], est: 'pendiente', error: ''});
     guardarCola(); programarSync(400);
     toast('✅ Foto guardada' + (OFF.en ? '. Subiendo…' : '. Se subirá cuando haya señal.'));
-    try { trasFoto(c); } catch(e){}
+    try { trasFoto(c.split('#')[0]); } catch(e){}
   } catch(e){ toast('⚠️ No se pudo usar esa foto. Intenta con otra.', true); }
 }
 function verFoto(c){
@@ -535,5 +582,7 @@ function verFoto(c){
     v.onclick = () => v.remove();
     document.body.appendChild(v);
   }
-  v.innerHTML = `<img src="${u}" style="max-width:100%;max-height:90vh;border-radius:12px">`;
+  const z = c.split('#'), nota = z[1] ? ((detDe(z[0]).nf || {})[z[1]] || '') : '';
+  v.style.flexDirection = 'column';
+  v.innerHTML = `<img src="${u}" style="max-width:100%;max-height:84vh;border-radius:12px">${nota ? `<div style="color:#fff;margin-top:10px;font-size:15px">${esc(nota)}</div>` : ''}`;
 }
