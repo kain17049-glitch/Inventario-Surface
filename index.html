@@ -422,7 +422,7 @@
   <label for="npKdx">Seguimiento kardex</label>
   <select id="npKdx"><option value="NO">No</option><option value="DIARIO">Diario (alta rotación)</option><option value="SEMANAL">Semanal</option></select>
   <label for="npBar">Código de barras de fábrica</label>
-  <div class="fila"><input id="npBar" placeholder="Opcional"><button class="btn cam" onclick="abrirEscaner('npBar')">📷</button></div>
+  <div class="fila"><input id="npBar" placeholder="Opcional · varios: 123 / 456"><button class="btn cam" onclick="abrirEscaner('npBar')">📷</button></div>
   <label for="npNotas">Notas</label><input id="npNotas" placeholder="Opcional">
   <div id="npActivoBox" class="oculto"><label><input id="npActivo" type="checkbox" style="width:auto;margin-right:8px">Producto activo</label></div>
   <button id="npGuardar" class="btn pri big" onclick="guardarProducto()">Crear producto</button>
@@ -560,7 +560,7 @@
   <button class="btn peligro big" onclick="salir()">Cerrar sesión</button>
 </div></div>
 
-<script src="offline.js?v=2.5.0"></script>
+<script src="offline.js?v=2.5.1"></script>
 <script>
 /* ================= Configuración de tipos ================= */
 const BARRA = String.fromCharCode(47);
@@ -702,7 +702,7 @@ function indexar(){
   S.productos.forEach(p => {
     p._n = norm([p.d, p.c, p.fam, p.cla, p.mar, p.bar].join(' '));
     S.porCodigo[p.c.toUpperCase()] = p;
-    if (p.bar) S.porCodigo[p.bar.toUpperCase()] = p;
+    barras(p).forEach(b => S.porCodigo[b] = p);
   });
 }
 

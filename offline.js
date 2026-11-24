@@ -5,7 +5,7 @@
  * en segundo plano. Sin señal, espera y se sube solo cuando vuelve.
  */
 const API_URL = 'https:' + String.fromCharCode(47, 47) + 'script.google.com/macros/s/AKfycbyXNamoz37LfEsn67XloeSKID490RBDJtJO9ZrYTswXYtp4bqABtJDuyFGOwMFijaoVLA/exec';
-const APP_VER = '2.5.0';
+const APP_VER = '2.5.1';
 const OFF = { en: true, snap: null, ST: {}, TOT: {}, FOTOS: {}, FT: {}, DET: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
 const LECTURAS = ['historial', 'porEstado', 'stockBajo', 'pendientes', 'listaProyectos', 'resumenProyecto', 'kardex',
                   'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea', 'sinMovimiento'];
@@ -73,8 +73,10 @@ function r3(x){ return Math.round(x * 1000) / 1000; }
 function cantLocal(c, u, e){ return OFF.ST[claveSt(c, u, e)] || 0; }
 function prodLocal(cod){
   const k = String(cod || '').trim().toUpperCase(); if (!k) return null;
-  return S.productos.find(p => p.c.toUpperCase() === k || (p.bar && p.bar.toUpperCase() === k)) || null;
+  return S.productos.find(p => p.c.toUpperCase() === k || barras(p).indexOf(k) >= 0) || null;
 }
+/** Un producto puede tener varios códigos de barras separados por " / " (misma cosa, otra marca o empaque) */
+function barras(p){ return String((p && p.bar) || '').toUpperCase().split(/\s*[\/;,]\s*/).filter(Boolean); }
 function ubicTodas(){ return (OFF.snap && OFF.snap.ubicTodas) || S.ubicaciones; }
 function efectosLocal(m){
   const c = m.cod, q = m.q, ub = m.ub, eo = m.eo || 'DISPONIBLE', ed = m.ed || 'DISPONIBLE';
@@ -207,7 +209,7 @@ function crearProductoOffline(d){
   if (igual) throw new Error('Ya existe "' + igual.d + '" con el código ' + igual.c + '.');
   const bar = String(d.codBarras || '').trim();
   if (bar){
-    if (prodLocal(bar)) throw new Error('El código de barras ' + bar + ' ya pertenece a otro producto.');
+    if (barras({bar: bar}).some(b => prodLocal(b))) throw new Error('El código de barras ' + bar + ' ya pertenece a otro producto.');
     if (ubicTodas().some(x => x.c.toUpperCase() === bar.toUpperCase())) throw new Error('Ese código es de una ubicación, no de un producto.');
   }
   const unidad = String(d.unidad || '').trim().toUpperCase() || 'UND';
