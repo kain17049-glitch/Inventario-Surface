@@ -5,7 +5,7 @@
  * en segundo plano. Sin señal, espera y se sube solo cuando vuelve.
  */
 const API_URL = 'https:' + String.fromCharCode(47, 47) + 'script.google.com/macros/s/AKfycbyXNamoz37LfEsn67XloeSKID490RBDJtJO9ZrYTswXYtp4bqABtJDuyFGOwMFijaoVLA/exec';
-const APP_VER = '2.5.1';
+const APP_VER = '2.6.0';
 const OFF = { en: true, snap: null, ST: {}, TOT: {}, FOTOS: {}, FT: {}, DET: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
 const LECTURAS = ['historial', 'porEstado', 'stockBajo', 'pendientes', 'listaProyectos', 'resumenProyecto', 'kardex',
                   'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea', 'sinMovimiento'];
@@ -93,8 +93,11 @@ function efectosLocal(m){
 }
 function pendientesLocal(c){
   const usados = {};
-  OFF.cola.forEach(o => { if (o.est !== 'error' && o.m.tipo === 'DEVOLUCION' && o.m.pendiente) usados[o.m.pendiente] = r3((usados[o.m.pendiente] || 0) + o.q); });
-  return ((OFF.snap && OFF.snap.pendientes) || []).filter(x => !c || x.c === c)
+  const cerrados = {};
+  OFF.cola.forEach(o => { if (o.est !== 'error' && o.m && o.m.tipo === 'DEVOLUCION' && o.m.pendiente){
+    usados[o.m.pendiente] = r3((usados[o.m.pendiente] || 0) + o.q);
+    if (o.m.restoConsumido) cerrados[o.m.pendiente] = true; } });
+  return ((OFF.snap && OFF.snap.pendientes) || []).filter(x => (!c || x.c === c) && !cerrados[x.id])
     .map(x => Object.assign({}, x, {falta: r3(x.falta - (usados[x.id] || 0))})).filter(x => x.falta > 1e-9);
 }
 function movDeCola(o){
@@ -175,6 +178,7 @@ function registrarOffline(m){
     if (q < 0) throw new Error('La cantidad contada no puede ser negativa.');
     q = r3(q - cantLocal(p.c, ub, eo));
   } else if (tipo === 'AJUSTE'){ if (q === 0) throw new Error('El ajuste no puede ser 0.'); }
+  else if (q === 0 && tipo === 'DEVOLUCION' && m.restoConsumido && m.pendiente){ /* no vuelve nada: todo se gastó */ }
   else if (q <= 0) throw new Error('La cantidad debe ser mayor que 0.');
   q = r3(q);
   if (tipo === 'DEVOLUCION' && m.pendiente){
@@ -189,14 +193,22 @@ function registrarOffline(m){
     acum[k] = (acum[k] == null ? cantLocal(e[0], e[1], e[2]) : acum[k]) + e[3];
     if (acum[k] < -1e-9) throw new Error('En ' + e[1] + (e[2] !== 'DISPONIBLE' ? ' (' + EST[e[2]] + ')' : '') + ' solo hay ' + fmtN(cantLocal(e[0], e[1], e[2])) + ' ' + p.u + '.');
   });
+  let consumido = 0;
+  if (tipo === 'DEVOLUCION' && m.pendiente && m.restoConsumido){
+    const pe = pendientesLocal(p.c).find(x => x.id === m.pendiente);
+    consumido = pe ? r3(pe.falta - q) : 0;
+  }
   const o = {opid: nuevoOpid(), ms: Date.now(), u: S.u, m: Object.assign({}, m, {tipo: tipo, codigo: p.c}),
              c: p.c, d: p.d, un: p.u, q: q, efs: efs, est: 'pendiente', error: ''};
   OFF.cola.push(o); guardarCola(); recalcLocal();
   const nuevos = {};
   efs.forEach(e => { nuevos[e[1] + (e[2] !== 'DISPONIBLE' ? ' · ' + EST[e[2]] : '')] = cantLocal(e[0], e[1], e[2]); });
   programarSync(400);
+  if (q === 0 && consumido > 0)
+    return {ok: true, id: OFF.en ? '☁️ subiendo' : '⏳ en cola', fecha: fechaCorta(new Date()), tipo: 'CONSUMO', codigo: p.c, producto: p.d,
+            unidad: p.u, cantidad: consumido, ubicacion: ub, destino: '', stock: {}, enCola: true};
   return {ok: true, id: OFF.en ? '☁️ subiendo' : '⏳ en cola', fecha: fechaCorta(new Date()), tipo: tipo, codigo: p.c, producto: p.d,
-          unidad: p.u, cantidad: q, ubicacion: ub, destino: dest, stock: nuevos, enCola: true};
+          unidad: p.u, cantidad: q, ubicacion: ub, destino: dest, stock: nuevos, enCola: true, consumido: consumido};
 }
 
 /** Producto nuevo sin señal: código provisional (ej. CIN-N7KQ) que se cambia por el definitivo al subir */

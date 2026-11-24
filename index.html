@@ -249,7 +249,10 @@
         <div class="fila"><select id="dest"></select><button class="btn cam" onclick="abrirEscaner('dest')">📷</button></div>
       </div>
       <div id="bEstadoD"><label id="lblEstD" for="estD">Pasa a</label><select id="estD"></select></div>
-      <div id="bPendiente"><label for="pend">¿Devuelve un préstamo / en uso?</label><select id="pend"></select></div>
+      <div id="bPendiente"><label for="pend">¿Devuelve un préstamo / en uso?</label><select id="pend"></select>
+        <label id="bResto" class="oculto" style="display:flex;gap:8px;align-items:flex-start;margin:8px 0 0;font-size:14px">
+          <input type="checkbox" id="resto" style="width:auto;margin-top:3px" onchange="pintarResto()">
+          <span><b>El resto se gastó en el proyecto</b><br><small id="restoTxt" class="ayuda">Lo que no vuelve queda como consumo y el préstamo se cierra.</small></span></label></div>
 
       <label id="lblCant" for="cant">Cantidad</label>
       <div id="bSigno" class="seg oculto"><button id="sMas" class="on" onclick="setSigno(1)">＋ Sumar</button><button id="sMenos" onclick="setSigno(-1)">－ Restar</button></div>
@@ -560,7 +563,7 @@
   <button class="btn peligro big" onclick="salir()">Cerrar sesión</button>
 </div></div>
 
-<script src="offline.js?v=2.5.1"></script>
+<script src="offline.js?v=2.6.0"></script>
 <script>
 /* ================= Configuración de tipos ================= */
 const BARRA = String.fromCharCode(47);
@@ -960,9 +963,11 @@ function actualizarProductoUI(){
   pintarStockAqui();
   /* Préstamos pendientes para devolución */
   if (T.pend){
-    const lista = p && S.det ? S.det.pendientes : [];
+    const lista = p && S.det ? S.det.pendientes : [], antes = $('pend').value;
     $('pend').innerHTML = '<option value="">No — es sobrante o material que vuelve</option>' +
       lista.map(x => `<option value="${esc(x.id)}">${esc(x.resp || x.pry)} · faltan ${fmtN(x.falta)} · desde ${esc(x.f.slice(0, 10))}</option>`).join('');
+    if (antes && lista.some(x => x.id === antes)) $('pend').value = antes;
+    pintarResto();
   }
 }
 function abrirNuevoProducto(codigo, desc){
@@ -1019,17 +1024,19 @@ async function guardar(){
     cantidad: cant, enPresentacion: !!(T.pres && S.enPres), precio: T.precio ? $('precio').value : '',
     precioPorPresentacion: $('precioPor').value === 'p', proyecto: T.pry ? $('pry').value : '', area: T.area ? $('area').value : '',
     responsable: T.resp ? $('resp').value : '', recordarDias: T.rec ? $('recordar').value : 0,
-    motivoBaja: T.motivo ? $('motivo').value : '', pendiente: T.pend ? $('pend').value : '', nota: $('nota').value};
+    motivoBaja: T.motivo ? $('motivo').value : '', pendiente: T.pend ? $('pend').value : '', nota: $('nota').value,
+    restoConsumido: !!(T.pend && $('pend').value && $('resto').checked)};
   const btn = $('btnGuardar'); btn.disabled = true; S.ocupado = true; btn.textContent = 'Guardando…';
   try {
     const r = await api('registrar', datos);
     guardarLocal('ubic', datos.ubicacion); vibrar([40, 60, 40]);
     const st = Object.keys(r.stock).map(u => `${esc(u)}: ${fmtN(r.stock[u])}`).join(' · ');
-    toast(`✅ ${esc(T.t)} · ${esc(r.producto)}<br><small>Ahora: ${st} ${esc(r.unidad)}</small>`);
+    toast(r.tipo === 'CONSUMO' ? `✅ Préstamo cerrado · ${fmtN(r.cantidad)} ${esc(r.unidad)} de ${esc(r.producto)} quedan como gastados en el proyecto`
+      : `✅ ${esc(T.t)} · ${esc(r.producto)}<br><small>Ahora: ${st} ${esc(r.unidad)}${r.consumido ? `<br>📦 ${fmtN(r.consumido)} ${esc(r.unidad)} quedan como gastados en el proyecto` : ''}</small>`);
     agregarSesion(r);
     S.prod = null; S.det = null;
     $('codigo').value = ''; $('prodCard').classList.add('oculto'); $('nota').value = ''; $('precio').value = '';
-    $('resp').value = ''; $('motivo').value = ''; $('cant').value = S.tipo === 'CONTEO' ? '' : 1;
+    $('resp').value = ''; $('motivo').value = ''; $('cant').value = S.tipo === 'CONTEO' ? '' : 1; $('resto').checked = false;
     vis('bPres', false); actualizarProductoUI(); $('codigo').focus();
   } catch(e){ toast('⚠️ ' + esc(e.message), true); }
   finally { btn.disabled = false; S.ocupado = false; btn.textContent = 'Registrar ' + T.t.toLowerCase(); }
@@ -1038,7 +1045,7 @@ function agregarSesion(r){
   S.cuenta++; $('contSesion').textContent = S.cuenta + ' movimiento(s)';
   const div = document.createElement('div'); div.className = 'item';
   const lugar = r.destino ? `${esc(r.ubicacion)} → ${esc(r.destino)}` : esc(r.ubicacion);
-  div.innerHTML = `<div class="top"><span><span class="badge ${r.tipo}">${esc(TIPOS[r.tipo].t)}</span> ${esc(r.id)}</span><span>${esc(r.fecha)}</span></div>
+  div.innerHTML = `<div class="top"><span><span class="badge ${r.tipo}">${esc(r.tipo === 'CONSUMO' ? 'Gastado en proyecto' : TIPOS[r.tipo].t)}</span> ${esc(r.id)}</span><span>${esc(r.fecha)}</span></div>
     <div><b>${(r.tipo === 'AJUSTE' || r.tipo === 'CONTEO') && r.cantidad > 0 ? '+' : ''}${fmtN(r.cantidad)} ${esc(r.unidad)}</b> · ${esc(r.producto)}</div><div class="meta">${lugar}</div>`;
   const box = $('sesion'); if (S.cuenta === 1) box.innerHTML = ''; box.prepend(div);
 }
@@ -1226,7 +1233,7 @@ function htmlMov(m, conAnular){
   else if (m.eo && m.eo !== 'DISPONIBLE') lugar += ` · ${esc(EST[m.eo])}`;
   const extra = [m.pry && '📁 ' + m.pry, m.area, m.resp && '👤 ' + m.resp].filter(Boolean).map(esc).join(' · ');
   return `<div class="item">
-    <div class="top"><span><span class="badge ${esc(m.t)}">${esc(T ? T.t : (m.t === 'ANULACION' ? 'Anulación' : m.t))}</span> ${esc(m.id)} ${anulado ? '<span class="badge anul">ANULADO</span>' : ''}</span><span>${esc(m.f)}</span></div>
+    <div class="top"><span><span class="badge ${esc(m.t)}">${esc(T ? T.t : (m.t === 'ANULACION' ? 'Anulación' : m.t === 'CONSUMO' ? 'Gastado en proyecto' : m.t))}</span> ${esc(m.id)} ${anulado ? '<span class="badge anul">ANULADO</span>' : ''}</span><span>${esc(m.f)}</span></div>
     <div class="${anulado ? 'tachado' : ''}"><b>${(m.t === 'AJUSTE' || m.t === 'CONTEO') && m.q > 0 ? '+' : ''}${fmtN(m.q)} ${esc(m.un)}</b> · ${esc(m.d)}</div>
     <div class="meta">${lugar}${extra ? ' · ' + extra : ''} · ${esc(m.us)}</div>
     ${m.nota ? `<div class="meta">📝 ${esc(m.nota)}</div>` : ''}
@@ -1684,6 +1691,19 @@ $('kCodigo').addEventListener('keydown', e => { if (e.key === 'Enter') generarKa
 $('ubic').addEventListener('change', () => { guardarLocal('ubic', $('ubic').value); actualizarProductoUI(); });
 $('estO').addEventListener('change', () => { autoUbicacion(); actualizarProductoUI(); });
 $('cant').addEventListener('input', pintarEquiv);
+function pintarResto(){
+  const x = S.det && S.det.pendientes.find(z => z.id === $('pend').value);
+  vis('bResto', !!x);
+  if (!x) return;
+  const dev = parseFloat(String($('cant').value).replace(',', '.')) || 0, q = S.enPres && S.prod && S.prod.fac > 0 ? dev * S.prod.fac : dev;
+  const resto = Math.max(0, Math.round((x.falta - q) * 1000) / 1000);
+  $('restoTxt').textContent = $('resto').checked
+    ? (resto > 0 ? `Vuelven ${fmtN(q)} ${S.prod.u} y ${fmtN(resto)} ${S.prod.u} quedan como gastados en ${x.pry || 'el proyecto'}. El préstamo se cierra.`
+                 : 'Vuelve todo: no queda nada como gastado.')
+    : (resto > 0 ? `Si no lo marcas, ${fmtN(resto)} ${S.prod.u} siguen como "en uso".` : 'Lo que no vuelve queda como consumo y el préstamo se cierra.');
+}
+$('cant').addEventListener('input', pintarResto);
+$('pend').addEventListener('change', () => { setTimeout(pintarResto, 0); });
 $('pend').addEventListener('change', () => { const x = S.det && S.det.pendientes.find(z => z.id === $('pend').value); if (x){ $('cant').value = x.falta; setPres(false); if (x.resp) $('resp').value = x.resp; if (x.pry) $('pry').value = x.pry; } });
 $('npPres').addEventListener('change', () => { vis('npFacBox', !!$('npPres').value); actualizarLblFac(); });
 $('npUnidad').addEventListener('change', actualizarLblFac);
