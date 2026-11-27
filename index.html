@@ -333,7 +333,7 @@
     <div id="mDetalle"></div>
     <div id="mAlertas"></div>
     <div id="mAbiertas"></div>
-    <div class="card"><h3>Equipos de producción</h3><div id="mLista"><div class="ayuda">Cargando…</div></div>
+    <div class="card"><h3>Equipos de producción</h3><div id="mValor"></div><div id="mLista"><div class="ayuda">Cargando…</div></div>
       <div class="acciones"><button class="btn sm" onclick="abrirOrden('PREVENTIVO')">🛠️ Iniciar mantenimiento</button>
         <button class="btn sm" onclick="imprimirPrograma()">🖨️ Imprimir programa</button></div></div>
   </section>
@@ -1369,9 +1369,15 @@ async function cargarMaquinas(){
     $('mAlertas').innerHTML = al.planes.length ? `<div class="card ${al.planes.some(p => p.st === 'VENCIDO') ? 'alerta-roja' : 'alerta-ambar'}"><h3>⏰ Mantenimientos por hacer (${al.planes.length})</h3>${al.planes.map(htmlAlertaPlan).join('')}</div>` : '';
     $('mAbiertas').innerHTML = r.abiertas.length ? `<div class="card"><h3>🔧 Órdenes en curso (${r.abiertas.length})</h3>${r.abiertas.map(htmlOrdenAbierta).join('')}</div>` : '';
     const activas = r.maquinas.filter(m => m.est !== 'BAJA'), baja = r.maquinas.filter(m => m.est === 'BAJA');
+    const vv = r.valor;
+    $('mValor').innerHTML = vv && vv.conDato ? `<div class="kpis" style="margin:0 0 10px;grid-template-columns:repeat(2,1fr)">
+      <div class="kpi"><div class="v">${usd(vv.compra)}</div><div class="l">Valor de compra</div></div>
+      <div class="kpi"><div class="v">${usd(vv.actual)}</div><div class="l">Valor actual (depreciado)</div></div></div>
+      ${vv.conDato < vv.total ? `<div class="meta">Con valor: ${vv.conDato} de ${vv.total} máquinas</div>` : ''}` : '';
     $('mLista').innerHTML = r.maquinas.length ? activas.concat(baja).map(m => `<div class="item" style="cursor:pointer" data-c="${esc(m.c)}" onclick="verMaquina(this.dataset.c)">
       <div class="top"><span>${esc(m.c)}${m.tipo ? ' · ' + esc(m.tipo) : ''}</span><span class="badge ${m.est}">${esc(EST_MAQ[m.est])}</span></div>
       <div><b>${esc(m.n)}</b>${detDe(m.c).resp ? ` <span class="meta">· 👤 ${esc(detDe(m.c).resp)}</span>` : ''}</div>
+      ${m.cu ? `<div class="meta">💲 ${usd(m.cu)} compra · ${usd(m.va)} actual</div>` : ''}
       <div class="meta">${m.prox ? `Próximo: ${esc(m.prox.tarea)} · ${esc(m.prox.prox)} (${esc(txtDias(m.prox.dias))})` : (m.est === 'BAJA' ? 'Sin planes' : 'Sin plan preventivo · tócala para agregar uno')}</div></div>`).join('')
       : '<div class="ayuda">Aún no hay máquinas. Pulsa “＋ Nueva máquina”.</div>';
   } catch(e){ $('mLista').innerHTML = `<div class="aviso error">${esc(e.message)}</div>`; }
@@ -1387,6 +1393,7 @@ async function verMaquina(c){
       <h3 style="font-size:18px;margin:4px 0">${esc(m.n)}</h3>
       <div class="meta">${[m.mar, m.mod, m.ser && 'Serie ' + m.ser, m.ub && '📍 ' + m.ub, m.fc && 'Compra ' + m.fc, m.prov && '🧰 ' + m.prov].filter(Boolean).map(esc).join(' · ')}</div>
       ${m.notas ? `<div class="meta">📝 ${esc(m.notas)}</div>` : ''}
+      ${m.cu ? `<div class="meta">💲 Compra <b style="color:#fff">${usd(m.cu)}</b> · Valor actual <b style="color:#fff">${usd(m.va)}</b>${m.dep ? ' (depreciado ' + String(m.dep).replace('.', ',') + ' %)' : ''}${m.fac ? ' · Fact. ' + esc(m.fac) : ''}</div>` : ''}
       ${htmlDet(m.c)}
       <div class="kpis" style="margin:10px 0 0;grid-template-columns:repeat(3,1fr)">
         <div class="kpi"><div class="v">${t.ordenes}</div><div class="l">Mantenimientos</div></div>
@@ -1440,6 +1447,7 @@ async function guardarMaquina(){
   } catch(e){ toast('⚠️ ' + esc(e.message), true); }
   finally { S.ocupado = false; }
 }
+function usd(x){ return 'US$ ' + (+x || 0).toLocaleString('es-PE', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
 function nombreMaq(c){ const m = S.mant && S.mant.maquinas.find(x => x.c === c); return m ? m.n : c; }
 function nuevoPlan(c){
   S.planMaq = c; S.editPlan = null; $('plTitulo').textContent = 'Nuevo plan preventivo'; $('plGuardar').textContent = 'Crear plan';

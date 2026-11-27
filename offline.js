@@ -5,7 +5,7 @@
  * en segundo plano. Sin señal, espera y se sube solo cuando vuelve.
  */
 const API_URL = 'https:' + String.fromCharCode(47, 47) + 'script.google.com/macros/s/AKfycbyXNamoz37LfEsn67XloeSKID490RBDJtJO9ZrYTswXYtp4bqABtJDuyFGOwMFijaoVLA/exec';
-const APP_VER = '2.6.0';
+const APP_VER = '2.7.0';
 const OFF = { en: true, snap: null, ST: {}, TOT: {}, FOTOS: {}, FT: {}, DET: {}, cola: [], sinc: false, tSnap: 0, dispositivo: '', timer: null };
 const LECTURAS = ['historial', 'porEstado', 'stockBajo', 'pendientes', 'listaProyectos', 'resumenProyecto', 'kardex',
                   'listaKardex', 'resumenInicio', 'listaMantenimiento', 'detalleMaquina', 'consumoArea', 'sinMovimiento'];
